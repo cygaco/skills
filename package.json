@@ -1,0 +1,13 @@
+{
+  "name": "skills",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Standalone Claude Code skill packs",
+  "license": "MIT",
+  "scripts": {
+    "test": "node scripts/checks/standalone-pack.test.js --self-test && node scripts/checks/standalone-pack.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

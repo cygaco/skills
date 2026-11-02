@@ -1,0 +1,10 @@
+# Roadmap
+
+Open work on the packs in this repo. Each item names what is known today and what would close it.
+
+| Id | Pack | Item | Status |
+|---|---|---|---|
+| SK-001 | all | Verify on macOS and confirm the minimum Node version. Tested so far: Windows; CI runs Linux and Windows on Node 20. The READMEs and `lastmile/pack.json` already say Node 20 or newer. The repo's own `package.json` still declares `"engines": { "node": ">=18" }`; set it to the measured floor. | open |
+| SK-002 | lastmile | Record one real `/lastmile` session in Claude Code, driven by a person, before promoting the pack. Two simulated runs checked that the command text and the scripts agree: the second confirmed every finding of the first was fixed. Its own smaller findings were then fixed in the text without a third simulated run. Neither run tested the conversation with a real user. | open |
+| SK-003 | lastmile | Script accuracy found by the simulated runs. Detection: the landing-page check misses `app/page.js` and `app/page.jsx`; env vars are read only from `.env` files; `REVIEW.md` shows detection signals but not file paths, the detected framework or env-var names; its gap heading ("shortest safe path") reads like a priority order, but gaps are listed by area. Plan content: the auth plan lists only Clerk env vars even when Supabase is already in the repo; web-only plans mention app-store risks; the monetization score credits a Stripe dependency even with no checkout code yet; the email sending-domain slow clock appears even when no email provider is set up. Plan layout: the "buy your domain" slow clock links the deployment guide, which has no domain-buying steps (the email guide does); a `## Later` section ends up below the module detail, under a closing line that says "the tasks above". | open |
+| SK-004 | lastmile | Guide content: the payments guide gives the lead time for Stripe identity and bank verification but not what "verified" looks like in the dashboard; the day-zero compliance task names three questions while its guide asks ten. | open |

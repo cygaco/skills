@@ -1,0 +1,220 @@
+{
+  "about": "Self-test fixtures for scripts/checks/standalone-pack.test.js. Each case is a temp repo built from the control tree, then the case's files laid over it (a file path starts with its case folder, which is stripped), then an optional build step run at test time. Every file under this folder must be listed in some case's files, or the normal run fails the fixture-manifest check. In hits, <sha> stands for a short commit id.",
+  "control": "control",
+  "cases": [
+    {
+      "case": "control",
+      "files": [
+        "control/README.md",
+        "control/demo/README.md",
+        "control/demo/pack.json",
+        "control/demo/command/demo.md",
+        "control/demo/kit/guides/guide.md",
+        "control/demo/kit/guides/other.md",
+        "control/demo/kit/scripts/lib/util.js",
+        "control/demo/kit/scripts/selfcheck.js",
+        "control/demo/kit/templates/page.tmpl.md"
+      ],
+      "expect": {
+        "exit": 0,
+        "hits": [],
+        "text": ["local tiers: absent (personal, instance cross-check), generic + hash tiers only", "standalone-pack: 1 packs, 0 failures"]
+      }
+    },
+    {
+      "case": "control-with-personal-list",
+      "files": [],
+      "env": { "personal": "dummy" },
+      "expect": { "exit": 0, "hits": [], "text": ["standalone-pack: 1 packs, 0 failures"], "notText": ["local tiers: absent"] }
+    },
+    {
+      "case": "shape-token",
+      "files": ["shape-token/NOTES.md"],
+      "expect": {
+        "exit": 1,
+        "hits": [
+          { "at": "NOTES.md:3", "check": "shape", "what": "paths-key" },
+          { "at": "NOTES.md:4", "check": "shape", "what": "paths-json" },
+          { "at": "NOTES.md:5", "check": "shape", "what": "hooks-lib" },
+          { "at": "NOTES.md:6", "check": "shape", "what": "tracker-file" },
+          { "at": "NOTES.md:7", "check": "shape", "what": "dispatch-wrapper" },
+          { "at": "NOTES.md:8", "check": "shape", "what": "dispatch-wrapper" },
+          { "at": "NOTES.md:9", "check": "shape", "what": "registry-file" },
+          { "at": "NOTES.md:10", "check": "shape", "what": "hookpoint-file" },
+          { "at": "NOTES.md:11", "check": "shape", "what": "abs-path-windows" },
+          { "at": "NOTES.md:12", "check": "shape", "what": "abs-path-mac" },
+          { "at": "NOTES.md:13", "check": "shape", "what": "abs-path-linux" },
+          { "at": "NOTES.md:14", "check": "shape", "what": "underscore-dir" },
+          { "at": "NOTES.md:15", "check": "shape", "what": "id-ed" },
+          { "at": "NOTES.md:16", "check": "shape", "what": "id-adr" },
+          { "at": "NOTES.md:17", "check": "shape", "what": "id-sprint" },
+          { "at": "NOTES.md:18", "check": "shape", "what": "id-sp" },
+          { "at": "NOTES.md:19", "check": "shape", "what": "id-ri" },
+          { "at": "NOTES.md:20", "check": "shape", "what": "id-pc" },
+          { "at": "NOTES.md:21", "check": "shape", "what": "id-epic" }
+        ]
+      }
+    },
+    {
+      "case": "canary-hash",
+      "files": ["canary-hash/NOTES.md"],
+      "expect": {
+        "exit": 1,
+        "hits": [
+          { "at": "NOTES.md:2", "check": "hash", "what": "canary" },
+          { "at": "NOTES.md:3", "check": "hash", "what": "canary" },
+          { "at": "NOTES.md:4", "check": "hash", "what": "canary" },
+          { "at": "NOTES.md:5", "check": "hash", "what": "canary-bigram" },
+          { "at": "NOTES.md:6", "check": "hash", "what": "canary-bigram" },
+          { "at": "NOTES.md:7", "check": "hash", "what": "canary-bigram" }
+        ]
+      }
+    },
+    {
+      "case": "personal-token",
+      "files": ["personal-token/NOTES.md"],
+      "env": { "personal": "dummy" },
+      "expect": {
+        "exit": 1,
+        "hits": [{ "at": "NOTES.md:2", "check": "personal", "what": "personal-token #1" }],
+        "notText": ["zz-dummy-personal-zz"]
+      }
+    },
+    {
+      "case": "d2-command",
+      "files": [],
+      "build": "d2-command",
+      "expect": { "exit": 1, "hits": [{ "at": "NOTES.md:2", "check": "d2-command" }] }
+    },
+    {
+      "case": "d3-link",
+      "files": ["d3-link/demo/kit/guides/guide.md"],
+      "expect": { "exit": 1, "hits": [{ "at": "demo/kit/guides/guide.md:11", "check": "d3-link" }] }
+    },
+    {
+      "case": "require-escape",
+      "files": ["require-escape/demo/kit/scripts/lib/util.js"],
+      "expect": {
+        "exit": 1,
+        "hits": [
+          { "at": "demo/kit/scripts/lib/util.js:4", "check": "require", "what": "escapes the installed pack" },
+          { "at": "demo/kit/scripts/lib/util.js:5", "check": "require", "what": "escapes the installed pack" }
+        ]
+      }
+    },
+    {
+      "case": "require-bare",
+      "files": ["require-bare/demo/kit/scripts/lib/util.js"],
+      "expect": { "exit": 1, "hits": [{ "at": "demo/kit/scripts/lib/util.js:4", "check": "require", "what": "not a node builtin" }] }
+    },
+    {
+      "case": "require-dynamic",
+      "files": ["require-dynamic/demo/kit/scripts/lib/util.js"],
+      "expect": { "exit": 1, "hits": [{ "at": "demo/kit/scripts/lib/util.js:4", "check": "require", "what": "non-literal argument" }] }
+    },
+    {
+      "case": "dirname-escape",
+      "files": ["dirname-escape/demo/kit/scripts/lib/util.js"],
+      "expect": { "exit": 1, "hits": [{ "at": "demo/kit/scripts/lib/util.js:5", "check": "dirname" }] }
+    },
+    {
+      "case": "selfcheck-fail",
+      "files": ["selfcheck-fail/demo/kit/scripts/selfcheck.js"],
+      "expect": { "exit": 1, "hits": [{ "at": "demo/pack.json:10", "check": "selfcheck", "what": "exit 3" }] }
+    },
+    {
+      "case": "install-missing",
+      "files": ["install-missing/demo/pack.json"],
+      "expect": {
+        "exit": 1,
+        "hits": [{ "at": "demo/pack.json:9", "check": "install", "what": "from not found" }],
+        "also": ["install-from"]
+      }
+    },
+    {
+      "case": "files-mismatch",
+      "files": ["files-mismatch/demo/pack.json"],
+      "expect": { "exit": 1, "hits": [{ "at": "demo/pack.json:11", "check": "files-list", "what": "on disk but not listed: kit/guides/other.md" }] }
+    },
+    {
+      "case": "install-from",
+      "files": ["install-from/demo/pack.json"],
+      "build": "empty-install-folder",
+      "expect": { "exit": 1, "hits": [{ "at": "demo/pack.json:9", "check": "install-from", "what": "not in files: kit/empty" }] }
+    },
+    {
+      "case": "bad-packjson",
+      "files": ["bad-packjson/demo/pack.json"],
+      "expect": { "exit": 2, "hits": [{ "at": "demo/pack.json:1", "check": "pack-json" }] }
+    },
+    {
+      "case": "git-log",
+      "files": [],
+      "build": "git-log",
+      "env": { "personal": "dummy" },
+      "expect": {
+        "exit": 1,
+        "hits": [
+          { "at": "git-log:<sha>", "check": "shape", "what": "tracker-file" },
+          { "at": "git-log:<sha>", "check": "hash", "what": "canary" },
+          { "at": "git-log:<sha>", "check": "personal", "what": "personal-token #1" }
+        ],
+        "notText": ["zz-dummy-personal-zz"]
+      }
+    },
+    {
+      "case": "strict-missing",
+      "files": [],
+      "env": { "strict": true },
+      "expect": {
+        "exit": 1,
+        "hits": [
+          { "at": "env:STANDALONE_PERSONAL_TOKENS", "check": "strict", "what": "absent" },
+          { "at": "env:STANDALONE_INSTANCE_TOKENS", "check": "strict", "what": "absent" }
+        ]
+      }
+    },
+    {
+      "case": "strict-cross-check",
+      "files": [],
+      "env": { "strict": true, "personal": "dummy", "instance": "canary-only" },
+      "expect": {
+        "exit": 1,
+        "hits": [{ "at": "env:STANDALONE_INSTANCE_TOKENS", "check": "cross-check", "what": "committed name-1 matches no instance entry" }]
+      }
+    },
+    {
+      "case": "strict-cross-check-trigram",
+      "files": [],
+      "env": { "strict": true, "personal": "dummy", "instance": "trigram" },
+      "expect": {
+        "exit": 1,
+        "hits": [{ "at": "env:STANDALONE_INSTANCE_TOKENS", "check": "cross-check", "what": "has 3 tokens" }]
+      }
+    },
+    {
+      "case": "fixture-manifest",
+      "files": [],
+      "build": "fixture-manifest",
+      "expect": {
+        "exit": 1,
+        "hits": [
+          { "at": "scripts/checks/fixtures/x/stray.md:1", "check": "fixture-manifest", "what": "not declared" },
+          { "at": "scripts/checks/fixtures/manifest.json:5", "check": "fixture-manifest", "what": "declared but missing: x/gone.md" }
+        ]
+      }
+    },
+    {
+      "case": "zero-packs",
+      "files": [],
+      "build": "zero-packs",
+      "expect": { "exit": 1, "hits": [{ "at": "(root)", "check": "packs", "what": "zero packs found" }] }
+    },
+    {
+      "case": "usage-error",
+      "files": [],
+      "args": ["--no-such-flag"],
+      "expect": { "exit": 2, "hits": [], "text": ["usage:"] }
+    }
+  ]
+}

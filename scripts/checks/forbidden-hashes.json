@@ -1,0 +1,62 @@
+{
+  "transform": "J1: NFKC, then lowercase, then split the whole text on /[^\\p{L}\\p{N}]+/u; SHA-256 hex of every unigram and every adjacent bigram joined by one space",
+  "note": "Digests only. The plaintext entries are never committed. The canary (a nonsense word, unigram) and canary-bigram (two nonsense words, bigram) are kept plain in one declared fixture, so the self-test proves both the unigram and the bigram paths RED.",
+  "digests": [
+    {
+      "label": "name-1",
+      "sha256": "f8e5a167b33ffafdbc8f3a7ba7dfa8a2151881964215bb5bd17ca76ced5bf4c1"
+    },
+    {
+      "label": "name-2",
+      "sha256": "1225151da9d7278bd1129033d5ec98711767223e1d93372b93d6a700e13227d1"
+    },
+    {
+      "label": "name-3",
+      "sha256": "e75de06124f320971b8ca2596b64103a62bf1fcda5f5375cbd8d10b604c46366"
+    },
+    {
+      "label": "name-4",
+      "sha256": "590af6bb0e14625f147fb42ab87472ab96812c249459df5f39f352301e810080"
+    },
+    {
+      "label": "name-5",
+      "sha256": "d453a13fda3da373ca959e451eebf0ef12c9f1d9cf4338adc5a15e487d0b4148"
+    },
+    {
+      "label": "name-6",
+      "sha256": "6bc0f9c4ecb0acbebf1b9f6c816bdd66f4885f67c917d9e141cf893014fba936"
+    },
+    {
+      "label": "name-7",
+      "sha256": "4135aa9dc1b842a653dea846903ddb95bfb8c5a10c504a7fa16e10bc31d1fdf0"
+    },
+    {
+      "label": "name-8",
+      "sha256": "3e32da9648c78feedcc821d56e483c126dcd270e9fe49973c528e3a88912d557"
+    },
+    {
+      "label": "name-9",
+      "sha256": "2245c1c8daf7694bc2b2fe9f156c39f4bac6c788dc32e42bccb74554af2b5d86"
+    },
+    {
+      "label": "name-10",
+      "sha256": "adbccba1f4f9f51c98fb2bcaff03870632d9d9999c82b2981a2d133e9d7e9cac"
+    },
+    {
+      "label": "name-11",
+      "sha256": "3027120f128ffcad1c779b86d0e5e2e8779817f62ecd23090905f62b818925ee"
+    },
+    {
+      "label": "name-12",
+      "sha256": "0f072b4daf81e8b8db6784d78f54e655058b19522c47b945b59d02f41d4cbaab"
+    },
+    {
+      "label": "canary",
+      "sha256": "ea370d4b45cd4d3d86f7f7142f7c68e662b3d3e1e90d5f3ba4a5985934ec5955"
+    },
+    {
+      "label": "canary-bigram",
+      "sha256": "5eaa637bc16fda7e906635c77a57a131cd62e2b9b59903f900d20733496a658b"
+    }
+  ]
+}

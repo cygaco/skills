@@ -1,0 +1,22 @@
+{
+  "name": "demo",
+  "version": "0.0.0",
+  "description": "Fixture: an install entry whose from file does not exist",
+  "commands": ["/demo"],
+  "install": [
+    { "from": "command/demo.md", "to": ".claude/commands/demo.md" },
+    { "from": "kit", "to": ".claude/demo" },
+    { "from": "kit/missing.md", "to": ".claude/demo-missing.md" }
+  ],
+  "selfcheck": "node .claude/demo/scripts/selfcheck.js",
+  "files": [
+    "README.md",
+    "command/demo.md",
+    "kit/guides/guide.md",
+    "kit/guides/other.md",
+    "kit/scripts/lib/util.js",
+    "kit/scripts/selfcheck.js",
+    "kit/templates/page.tmpl.md",
+    "pack.json"
+  ]
+}
