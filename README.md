@@ -9,7 +9,7 @@ Each pack is a folder you copy into your own project. It works in any project, w
 | Pack | Status | What it does |
 |---|---|---|
 | [`lastmile`](lastmile/README.md) | available | Reviews a working app for launch readiness, then plans and guides the path to the first paid customer. |
-| `competitor` | coming soon | Researches competitors and writes a report, optionally compared against your own project. |
+| [`competitor`](competitor/README.md) | available | Researches competitors and writes a report, optionally compared against your own project. |
 | `twin` | coming soon | Sets up a read-only judgment helper that answers routine questions the way you would. |
 
 ## Install a pack

@@ -1,0 +1,52 @@
+{
+  "name": "competitor",
+  "version": "0.1.0",
+  "description": "Competitor research for Claude Code: a sourced brief on a competitor's product, pricing and reviews from the public web, and optionally a side-by-side comparison with your project. Report only; it never builds anything or changes your code.",
+  "commands": [
+    "/competitor"
+  ],
+  "install": [
+    {
+      "from": "command/competitor.md",
+      "to": ".claude/commands/competitor.md"
+    },
+    {
+      "from": "kit",
+      "to": ".claude/competitor"
+    }
+  ],
+  "selfcheck": "node .claude/competitor/scripts/selfcheck.js",
+  "requires": {
+    "node": ">=20"
+  },
+  "files": [
+    "README.md",
+    "command/competitor.md",
+    "kit/scripts/fixtures/compare-full.json",
+    "kit/scripts/fixtures/draft-full.json",
+    "kit/scripts/fixtures/draft-hostile.json",
+    "kit/scripts/fixtures/sample-repo/README.md",
+    "kit/scripts/fixtures/sample-repo/package.json",
+    "kit/scripts/fixtures/sample-repo/src/editor.ts",
+    "kit/scripts/lib/blocks.js",
+    "kit/scripts/lib/brief.js",
+    "kit/scripts/lib/compare.js",
+    "kit/scripts/lib/confine.js",
+    "kit/scripts/lib/draft.js",
+    "kit/scripts/lib/guard.js",
+    "kit/scripts/lib/slug.js",
+    "kit/scripts/lib/templates.js",
+    "kit/scripts/lib/text.js",
+    "kit/scripts/report.js",
+    "kit/scripts/selfcheck.js",
+    "kit/templates/brief.html.tmpl",
+    "kit/templates/brief.md.tmpl",
+    "kit/templates/compare-sections.json",
+    "kit/templates/compare.html.tmpl",
+    "kit/templates/compare.md.tmpl",
+    "kit/templates/draft.schema.md",
+    "kit/templates/section-defaults.json",
+    "kit/templates/sections.json",
+    "pack.json"
+  ]
+}

@@ -57,7 +57,7 @@ Check every URL before you fetch it, including links you found on fetched pages:
 node .claude/competitor/scripts/report.js check-url "<url>" ["<url>" …]
 ```
 
-It prints `ok` or `refused: <reason>` per URL, and exits non-zero if any was refused. Record a refused URL with status `refused` and the reason, and never fetch it.
+It prints one line per URL, `ok <url>` or `refused <url>: <reason>`, and exits non-zero if any was refused. Record a refused URL with status `refused` and the reason, and never fetch it.
 
 - **The product site:** the home page, then up to 8 pages it links to on the same site, one level deep. Follow same-site links only. Prefer pricing, features or product, docs, changelog, about, security or trust, and customers.
 - **Reviews:** search for independent reviews (review sites, app-store listings if there is a mobile app, community discussions). From the search results, check and fetch up to `--max-review-sources` of them.
