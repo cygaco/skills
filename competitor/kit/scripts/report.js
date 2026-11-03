@@ -21,7 +21,17 @@
  * check prints "slug: <slug>", for a URL also "url: <normalised URL>", and
  * "dir: competitor/<slug>/" after making sure that folder and competitor/ are
  * real folders inside the repository (created when absent, refused when one is
- * a link or junction or resolves outside).
+ * a link or junction or resolves outside). It also refuses, naming the file,
+ * when draft.json, compare.json, urls.txt or one of the four reports already
+ * exists in that folder as a link, a junction, a folder, a device or a file
+ * with more than one hard link, and when any other entry of that folder (a
+ * second URL list, say) is a link, a junction, a device or a file with more
+ * than one hard link. It removes nothing.
+ *
+ * A draft or compare.json is refused (exit 2) when it is larger than 5 MB,
+ * nested more than 32 levels deep, holds more than 250,000 values, or has a
+ * list longer than its cap (source_records 500; the other row lists 200 each;
+ * cites 50; any other list 500). These are counted before the file is parsed.
  *
  * Exit codes: 0 done; 2 refused, bad draft or usage error; 1 unexpected error
  * (a missing or broken template is one, and nothing is written).
@@ -38,7 +48,7 @@ const { normalizeSlug, refuseSlug, refuseName, slugFromHost } = require("./lib/s
 const { mdText, htmlText, printable, shownUrl } = require("./lib/text");
 const { TemplateError, loadKit, renderTemplate } = require("./lib/templates");
 const { mdInline, htmlInline, renderSectionsMd, renderSectionsHtml } = require("./lib/blocks");
-const { RefusedError, OUT_FOLDER, prepareDir, writeOutputs, readInputFile } = require("./lib/confine");
+const { RefusedError, OUT_FOLDER, prepareDir, refuseRunFileLinks, writeOutputs, readInputFile } = require("./lib/confine");
 const { DraftError, readJsonFile, analyzeDraft } = require("./lib/draft");
 const { BRIEF_IDS, buildBrief } = require("./lib/brief");
 const { COMPARE_IDS, COMPARE_GAP_IDS, buildCompare } = require("./lib/compare");
@@ -176,8 +186,10 @@ function cmdCheck(flags, io) {
     io.out(`refused: ${why}`);
     return 2;
   }
-  // The folder is prepared before anything is printed, so a refusal prints no slug.
+  // The folder and the files a run writes into it are judged before anything
+  // is printed, so a refusal prints no slug.
   const prep = prepareDir(io.cwd, slug);
+  refuseRunFileLinks(prep);
   io.out(`slug: ${slug}`);
   for (const l of found) io.out(l);
   io.out(`dir: ${prep.rel}`);

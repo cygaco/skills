@@ -28,7 +28,12 @@
  * cap and the read-time string cap; missing and broken templates; unexpected
  * errors; the comparison with valid, missing, "..", absolute and drive-letter
  * path cites and "you said", feature rows without a fetched source, and file
- * cites on openings, risks and next steps; and every exit code.
+ * cites on openings, risks and next steps; and every exit code. Also: run files
+ * that check refuses (links, junctions, folders and hard-linked files named
+ * draft.json, compare.json, urls.txt or a report, and links and hard-linked
+ * files under any other name in that folder); the list caps, the cites
+ * cap, the nesting and value limits, all counted before parsing; and folder,
+ * "." and link cites rendering as unverified.
  */
 
 const fs = require("fs");
@@ -1104,6 +1109,331 @@ function checkText() {
   check("text.md leaves ordinary colons alone", text.mdText("Ratio 3:1, time 09:30") === "Ratio 3:1, time 09:30");
 }
 
+// ---------------------------------------------------------------- run files that are links
+
+/** Links `at` to a file (a symbolic link) or, where this system cannot, to a folder (a junction). Returns the kind made, or "". */
+function linkAny(fileTarget, dirTarget, at) {
+  try {
+    fs.symlinkSync(fileTarget, at, "file");
+    return "symbolic link";
+  } catch (e) {
+    return linkDir(dirTarget, at) ? (process.platform === "win32" ? "junction" : "folder link") : "";
+  }
+}
+
+const RUN_FILES = ["draft.json", "compare.json", "urls.txt", "acme-notes.competitor.md", "acme-notes.competitor.html", "acme-notes.compare.md", "acme-notes.compare.html"];
+
+function checkRunFiles() {
+  if (typeof confine.runFileNames === "function") {
+    check("runfiles.the kit judges exactly the seven run files", JSON.stringify(confine.runFileNames("acme-notes")) === JSON.stringify(RUN_FILES), () => JSON.stringify(confine.runFileNames("acme-notes")));
+  } else fail("runfiles.the kit judges exactly the seven run files", "confine has no list of run files");
+
+  for (const name of RUN_FILES) {
+    const repo = makeRepo();
+    const folder = path.join(repo, "competitor", "acme-notes");
+    fs.mkdirSync(folder, { recursive: true });
+    const outFile = path.join(TMP, `runfile-ext-${repoCount}.txt`);
+    const outDir = path.join(TMP, `runfile-ext-dir-${repoCount}`);
+    fs.writeFileSync(outFile, "EXTERNAL\n");
+    fs.mkdirSync(outDir, { recursive: true });
+    const at = path.join(folder, name);
+    const kind = linkAny(outFile, outDir, at);
+    if (!kind) {
+      skip(`runfiles.check refuses a link at competitor/acme-notes/${name}`, "cannot create a link here");
+      continue;
+    }
+    const r = cli(["check", "--target", "Acme Notes"], { cwd: repo });
+    let still = false;
+    try {
+      still = fs.lstatSync(at).isSymbolicLink();
+    } catch (e) {
+      still = false;
+    }
+    check(`runfiles.check refuses a ${kind} at competitor/acme-notes/${name} (exit 2, names it, asks to delete it, removes nothing)`,
+      r.code === 2 && r.out.length === 1 && (r.out[0] || "").startsWith(`refused: competitor/acme-notes/${name} is a symbolic link or junction`) && /delete it/.test(r.out[0] || "") &&
+        still && fs.readFileSync(outFile, "utf8") === "EXTERNAL\n" && fs.readdirSync(outDir).length === 0,
+      () => JSON.stringify(r));
+  }
+
+  {
+    const repo = makeRepo();
+    const at = path.join(repo, "competitor", "acme-notes", "draft.json");
+    fs.mkdirSync(at, { recursive: true });
+    const r = cli(["check", "--target", "Acme Notes"], { cwd: repo });
+    check("runfiles.check refuses a folder named draft.json (not a regular file; exit 2, nothing removed)",
+      r.code === 2 && /^refused: competitor\/acme-notes\/draft\.json exists and is not a regular file/.test(r.out[0] || "") && fs.statSync(at).isDirectory(), () => JSON.stringify(r));
+  }
+
+  for (const name of ["draft.json", "compare.json", "urls.txt", "acme-notes.competitor.html"]) {
+    const repo = makeRepo();
+    const folder = path.join(repo, "competitor", "acme-notes");
+    fs.mkdirSync(folder, { recursive: true });
+    const ext = path.join(TMP, `hard-ext-${repoCount}.txt`);
+    fs.writeFileSync(ext, "EXTERNAL\n");
+    const at = path.join(folder, name);
+    try {
+      fs.linkSync(ext, at);
+    } catch (e) {
+      skip(`runfiles.check refuses a hard-linked ${name}`, `cannot create a hard link here: ${e.code || e.message}`);
+      continue;
+    }
+    const r = cli(["check", "--target", "Acme Notes"], { cwd: repo });
+    check(`runfiles.check refuses a hard-linked ${name} (2 links; exit 2, names it, removes nothing)`,
+      r.code === 2 && r.out.length === 1 && (r.out[0] || "").startsWith(`refused: competitor/acme-notes/${name} has 2 hard links`) && /delete it/.test(r.out[0] || "") &&
+        fs.existsSync(at) && fs.statSync(ext).nlink === 2 && fs.readFileSync(ext, "utf8") === "EXTERNAL\n",
+      () => JSON.stringify(r));
+  }
+
+  // A second URL list has another name (check-url reads at most 200 URLs a file), so every other entry is judged too.
+  {
+    const repo = makeRepo();
+    const folder = path.join(repo, "competitor", "acme-notes");
+    fs.mkdirSync(folder, { recursive: true });
+    const outFile = path.join(TMP, `runfile-other-${repoCount}.txt`);
+    const outDir = path.join(TMP, `runfile-other-dir-${repoCount}`);
+    fs.writeFileSync(outFile, "EXTERNAL\n");
+    fs.mkdirSync(outDir, { recursive: true });
+    const at = path.join(folder, "urls-2.txt");
+    const kind = linkAny(outFile, outDir, at);
+    if (!kind) skip("runfiles.check refuses a link under another name (urls-2.txt)", "cannot create a link here");
+    else {
+      const r = cli(["check", "--target", "Acme Notes"], { cwd: repo });
+      let still = false;
+      try {
+        still = fs.lstatSync(at).isSymbolicLink();
+      } catch (e) {
+        still = false;
+      }
+      check(`runfiles.check refuses a ${kind} under another name, competitor/acme-notes/urls-2.txt (exit 2, names it, removes nothing)`,
+        r.code === 2 && r.out.length === 1 && (r.out[0] || "").startsWith("refused: competitor/acme-notes/urls-2.txt is a symbolic link or junction") && /delete it/.test(r.out[0] || "") &&
+          still && fs.readFileSync(outFile, "utf8") === "EXTERNAL\n" && fs.readdirSync(outDir).length === 0,
+        () => JSON.stringify(r));
+    }
+  }
+  {
+    const repo = makeRepo();
+    const folder = path.join(repo, "competitor", "acme-notes");
+    fs.mkdirSync(folder, { recursive: true });
+    const ext = path.join(TMP, `hard-other-${repoCount}.txt`);
+    fs.writeFileSync(ext, "EXTERNAL\n");
+    const at = path.join(folder, "urls-2.txt");
+    let made = true;
+    try {
+      fs.linkSync(ext, at);
+    } catch (e) {
+      made = false;
+      skip("runfiles.check refuses a hard-linked file under another name (urls-2.txt)", `cannot create a hard link here: ${e.code || e.message}`);
+    }
+    if (made) {
+      const r = cli(["check", "--target", "Acme Notes"], { cwd: repo });
+      check("runfiles.check refuses a hard-linked file under another name, competitor/acme-notes/urls-2.txt (exit 2, names it, removes nothing)",
+        r.code === 2 && r.out.length === 1 && (r.out[0] || "").startsWith("refused: competitor/acme-notes/urls-2.txt has 2 hard links") && /delete it/.test(r.out[0] || "") &&
+          fs.existsSync(at) && fs.statSync(ext).nlink === 2 && fs.readFileSync(ext, "utf8") === "EXTERNAL\n",
+        () => JSON.stringify(r));
+    }
+  }
+  {
+    const repo = makeRepo();
+    putJson(repo, "competitor/acme-notes/urls-2.txt", "https://www.example.com/a\n");
+    putJson(repo, "competitor/acme-notes/notes/kept.md", "a plain file in a plain folder\n");
+    const r = cli(["check", "--target", "Acme Notes"], { cwd: repo });
+    check("runfiles.check accepts plain files and plain folders under other names (urls-2.txt, notes/)", r.code === 0 && r.out.includes("dir: competitor/acme-notes/"), () => JSON.stringify(r));
+  }
+
+  {
+    const repo = makeRepo();
+    for (const name of RUN_FILES) putJson(repo, `competitor/acme-notes/${name}`, "from an earlier run\n");
+    const r = cli(["check", "--target", "Acme Notes"], { cwd: repo });
+    check("runfiles.check accepts an earlier run's files when each is a plain file with one link", r.code === 0 && r.out.includes("dir: competitor/acme-notes/"), () => JSON.stringify(r));
+  }
+}
+
+// ---------------------------------------------------------------- counts and nesting
+
+function checkCounts() {
+  const base = fixture("draft-full.json");
+  const okRec = (i) => ({ url: `https://www.example.com/p${i}`, source_class: "product", status: "ok", retrieved_at: "2026-11-01T09:30:00Z" });
+  const runBrief = (doc) => {
+    const repo = makeRepo();
+    putJson(repo, "draft.json", doc);
+    const t0 = Date.now();
+    const r = cli(["brief", "--draft", "draft.json"], { cwd: repo });
+    return { ...r, ms: Date.now() - t0, wrote: exists(repo, "competitor") };
+  };
+  const runCompare = (cmp, briefDoc) => {
+    const repo = makeRepo();
+    putJson(repo, "d.json", briefDoc || base);
+    putJson(repo, "c.json", cmp);
+    const r = cli(["compare", "--draft", "c.json", "--brief", "d.json"], { cwd: repo });
+    return { ...r, wrote: exists(repo, "competitor") };
+  };
+  const refused = (r, phrase) => r.code === 2 && !r.wrote && r.err.some((l) => l.startsWith("bad draft:") && l.includes(phrase));
+  const shown = (r) => JSON.stringify({ code: r.code, out: r.out.slice(0, 3), err: r.err.slice(0, 3) }).slice(0, 400);
+
+  let r = runBrief({ ...base, source_records: Array.from({ length: 600 }, (_, i) => okRec(i)) });
+  check("counts.a draft with 600 source_records is refused (exit 2, too many source_records, nothing written)", refused(r, "too many source_records (more than 500)"), () => shown(r));
+
+  // A million tiny records in about 3 MB: inside the byte cap, refused by the count before parsing.
+  {
+    const repo = makeRepo();
+    const head = JSON.stringify({ ...base, source_records: [] });
+    const raw = head.replace('"source_records":[]', `"source_records":[${"{},".repeat(999999)}{}]`);
+    fs.writeFileSync(path.join(repo, "draft.json"), raw);
+    const t0 = Date.now();
+    const rr = cli(["brief", "--draft", "draft.json"], { cwd: repo });
+    const ms = Date.now() - t0;
+    check(`counts.1,000,000 tiny source_records (${Math.round(raw.length / 1e5) / 10} MB) are refused before any record is built (${ms} ms)`,
+      rr.code === 2 && rr.err.length === 1 && rr.err[0].includes("too many source_records") && ms < 2000 && !exists(repo, "competitor"), () => `${ms} ms ${shown(rr)}`);
+  }
+
+  for (const key of ["features", "voc", "jtbds", "gaps", "opportunities"]) {
+    const row = JSON.parse(JSON.stringify(base[key][0]));
+    r = runBrief({ ...base, [key]: Array.from({ length: 201 }, () => row) });
+    check(`counts.a draft with 201 ${key} is refused (exit 2, too many ${key})`, refused(r, `too many ${key} (more than 200)`), () => shown(r));
+  }
+
+  // Exactly at every cap still renders.
+  {
+    const atCap = JSON.parse(JSON.stringify(base));
+    atCap.source_records = [...base.source_records, ...Array.from({ length: 500 - base.source_records.length }, (_, i) => okRec(i))];
+    for (const key of ["features", "voc", "jtbds", "gaps", "opportunities"]) atCap[key] = Array.from({ length: 200 }, () => JSON.parse(JSON.stringify(base[key][0])));
+    atCap.jtbds[0].cites = Array.from({ length: 50 }, (_, i) => `https://www.example.com/p${i}`);
+    atCap.product_identity.cites = Array.from({ length: 50 }, () => "https://www.example.com/");
+    r = runBrief(atCap);
+    check(`counts.a draft exactly at every cap renders (500 records, 200 of each row list, 50 cites; ${r.ms} ms)`, r.code === 0 && r.wrote, () => shown(r));
+  }
+
+  const cites51 = Array.from({ length: 51 }, () => "https://www.example.com/");
+  {
+    const d = JSON.parse(JSON.stringify(base));
+    d.jtbds[0].cites = cites51;
+    r = runBrief(d);
+    check("counts.a row with 51 cites is refused, naming where (jtbds[0].cites)", refused(r, "too many cites in jtbds[0].cites (more than 50)"), () => shown(r));
+    const d2 = JSON.parse(JSON.stringify(base));
+    d2.product_identity.cites = cites51;
+    r = runBrief(d2);
+    check("counts.product_identity with 51 cites is refused", refused(r, "too many cites in product_identity.cites"), () => shown(r));
+  }
+
+  const cmpBase = fixture("compare-full.json");
+  for (const key of ["features", "your_side", "openings", "risks", "next_steps", "positioning", "jobs_overlap", "unanswered"]) {
+    const item = JSON.parse(JSON.stringify(cmpBase[key][0]));
+    r = runCompare({ ...cmpBase, [key]: Array.from({ length: 201 }, () => item) });
+    check(`counts.a compare.json with 201 ${key} is refused (exit 2, too many ${key})`, refused(r, `too many ${key} (more than 200)`), () => shown(r));
+  }
+  {
+    const c = JSON.parse(JSON.stringify(cmpBase));
+    c.risks[0].cites = cites51;
+    r = runCompare(c);
+    check("counts.a compare risk with 51 cites is refused (risks[0].cites)", refused(r, "too many cites in risks[0].cites"), () => shown(r));
+    const c2 = JSON.parse(JSON.stringify(cmpBase));
+    c2.pricing.them.cites = cites51;
+    r = runCompare(c2);
+    check("counts.compare pricing with 51 cites is refused (pricing.them.cites)", refused(r, "too many cites in pricing.them.cites"), () => shown(r));
+  }
+
+  // Nesting: refused past 32 levels, wherever it is, before it is parsed or walked.
+  const nest = (depth) => {
+    let v = "leaf";
+    for (let k = 0; k < depth; k++) v = [v];
+    return v;
+  };
+  r = runBrief({ ...base, extra: nest(99) });
+  check("counts.a 100-deep nested draft is refused (exit 2, nested more than 32 levels)", refused(r, "nested more than 32 levels deep"), () => shown(r));
+  {
+    const d = JSON.parse(JSON.stringify(base));
+    d.jtbds[0].cites = nest(40);
+    r = runBrief(d);
+    check("counts.deep nesting inside a cites list is refused too", refused(r, "nested more than 32 levels deep"), () => shown(r));
+  }
+  r = runBrief({ ...base, extra: nest(31) });
+  check("counts.exactly 32 levels is accepted", r.code === 0, () => shown(r));
+  r = runBrief({ ...base, extra: nest(32) });
+  check("counts.33 levels is refused", refused(r, "nested more than 32 levels deep"), () => shown(r));
+  r = runCompare({ ...cmpBase, extra: nest(99) });
+  check("counts.a 100-deep nested compare.json is refused", refused(r, "nested more than 32 levels deep"), () => shown(r));
+
+  // The count reads JSON as JSON.parse does: brackets in text, escaped quotes and escaped keys.
+  {
+    const d = JSON.parse(JSON.stringify(base));
+    d.gaps[0].gap = `${"[{".repeat(100)} say \\"[[[\\" ${'"'}[{`;
+    d.jtbds[0].why = `${",".repeat(5000)}`;
+    r = runBrief(d);
+    check("counts.brackets, commas and escaped quotes inside text do not count as nesting or items", r.code === 0, () => shown(r));
+    const raw = JSON.stringify({ ...base, source_records: [] }).replace('"source_records":[]', `"source\\u005frecords":${JSON.stringify(Array.from({ length: 600 }, (_, i) => okRec(i)))}`);
+    const repo = makeRepo();
+    fs.writeFileSync(path.join(repo, "draft.json"), raw);
+    const rr = cli(["brief", "--draft", "draft.json"], { cwd: repo });
+    check("counts.an escaped key (source\\u005frecords) is counted as source_records", rr.code === 2 && rr.err.some((l) => l.includes("too many source_records")), () => shown(rr));
+  }
+
+  // Lists the renderer never reads are capped too, and so is the total.
+  r = runBrief({ ...base, extra: Array.from({ length: 501 }, () => 1) });
+  check("counts.any other list over 500 items is refused", refused(r, "too many items in the list extra (more than 500)"), () => shown(r));
+  {
+    const wide = {};
+    for (let k = 0; k < 600; k++) wide[`k${k}`] = Array.from({ length: 450 }, () => 0);
+    r = runBrief({ ...base, extra: wide });
+    check("counts.a draft holding more than 250,000 values is refused", refused(r, "more than 250000 values"), () => shown(r));
+  }
+
+  // Documents handed in already parsed meet the same caps.
+  {
+    let caught = null;
+    try {
+      draftLib.analyzeDraft({ ...base, source_records: Array.from({ length: 600 }, (_, i) => okRec(i)) }, "draft");
+    } catch (e) {
+      caught = e;
+    }
+    check("counts.analyzeDraft refuses 600 source_records in a parsed document too", caught instanceof draftLib.DraftError && /too many source_records/.test(caught.message), () => (caught ? caught.message : "no error"));
+  }
+}
+
+// ---------------------------------------------------------------- folder and link cites
+
+function checkDirCites() {
+  const repo = makeRepo();
+  for (const c of [".", "./", "src", "src/", "./src", "src/.", ".#top", "src:12"]) {
+    const got = confine.verifyCite(c, repo);
+    check(`dircite.a cite of ${JSON.stringify(c)} (a folder) is unverified`, got.kind === "unverified" && /folder/.test(got.reason || ""), () => JSON.stringify(got));
+  }
+  if (linkDir(path.join(repo, "src"), path.join(repo, "srclink"))) {
+    const got = confine.verifyCite("srclink", repo);
+    check("dircite.a cite of a folder link inside the repository is unverified", got.kind === "unverified" && /link/.test(got.reason || ""), () => JSON.stringify(got));
+  } else skip("dircite.a cite of a folder link is unverified", "cannot create a link here");
+  let fileLink = false;
+  try {
+    fs.symlinkSync(path.join(repo, "README.md"), path.join(repo, "readme-link.md"), "file");
+    fileLink = true;
+  } catch (e) {
+    skip("dircite.a cite of a file link inside the repository is unverified", `cannot create a file link here: ${e.code || e.message}`);
+  }
+  if (fileLink) {
+    const got = confine.verifyCite("readme-link.md", repo);
+    check("dircite.a cite of a file link inside the repository is unverified", got.kind === "unverified" && /link/.test(got.reason || ""), () => JSON.stringify(got));
+  }
+  const reg = confine.verifyCite("src/editor.ts:3", repo);
+  const miss = confine.verifyCite("src/none.ts", repo);
+  check("dircite.a regular file still verifies; a missing one is still unverified", reg.kind === "file" && reg.text === "src/editor.ts" && miss.kind === "unverified" && /no such file/.test(miss.reason), () => JSON.stringify([reg, miss]));
+
+  // Rendered: "." and a folder show as unverified in the comparison.
+  const cmp = {
+    generated_at: "2026-11-03T10:00:00Z",
+    features: [{ name: "Quick capture", them: { status: "yes", evidence_url: "https://www.example.com/features" }, you: { status: "yes", cite: "." } }],
+    your_side: [{ fact: "The whole repository.", cite: "." }, { fact: "The source folder.", cite: "src" }, { fact: "The editor.", cite: "src/editor.ts" }],
+    risks: [{ risk: "Cites a folder.", cites: ["src/"] }],
+  };
+  putJson(repo, "competitor/acme-notes/draft.json", fixture("draft-full.json"));
+  putJson(repo, "competitor/acme-notes/compare.json", cmp);
+  const r = cli(["compare", "--draft", "competitor/acme-notes/compare.json", "--brief", "competitor/acme-notes/draft.json"], { cwd: repo });
+  const md = r.code === 0 ? read(repo, "competitor/acme-notes/acme-notes.compare.md") : "";
+  check("dircite.a cite of \".\" renders unverified (md row, your side, counts)",
+    r.code === 0 && /\| C1 \| Quick capture \|.*\| \*\*unverified\*\* \. \(a folder, not a file/.test(md) && /\*\*Y1\.\*\* The whole repository\. \*\*unverified\*\* \. \(a folder/.test(md) &&
+      /\*\*Y2\.\*\* The source folder\. \*\*unverified\*\* src \(a folder/.test(md) && /\*\*R1\.\*\* Cites a folder\. \*\*unverified\*\* src\/ \(a folder/.test(md) &&
+      r.out.includes("your-side cites: 1 file verified, 0 you said, 4 unverified"),
+    () => `${JSON.stringify(r.out)} ${(md.match(/^.*(C1|Y1|Y2|R1)\b.*$/gm) || []).join(" / ")}`);
+}
+
 // ---------------------------------------------------------------- run
 
 function main() {
@@ -1127,6 +1457,9 @@ function main() {
     section("compare", checkCompare);
     section("compare sourcing", checkCompareSourcing);
     section("text", checkText);
+    section("run files", checkRunFiles);
+    section("counts", checkCounts);
+    section("folder cites", checkDirCites);
   } finally {
     try {
       fs.rmSync(TMP, { recursive: true, force: true, maxRetries: 3 });

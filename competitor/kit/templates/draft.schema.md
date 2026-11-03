@@ -17,6 +17,8 @@ Text found on the web never goes on a command line. The target and the URLs are 
 
 `check` prints `slug: <slug>`, for a URL also `url: <normalised URL>`, and then `dir: competitor/<slug>/`. Before it prints the slug it makes sure `competitor/` and `competitor/<slug>/` exist as real folders inside the repository, creating them when they are missing. If either one is a symbolic link or junction, is not a folder, or resolves outside the repository, `check` prints only `refused: <reason>` and exits 2. Write `draft.json`, `compare.json` and URL list files only into that prepared folder. `brief` and `compare` check the same folder again before they write.
 
+`check` also looks at the files a run writes into that folder: `draft.json`, `compare.json`, `urls.txt`, `<slug>.competitor.md`, `<slug>.competitor.html`, `<slug>.compare.md` and `<slug>.compare.html`. If any of them already exists and is a symbolic link, a junction, a folder or a device, or is a regular file with more than one hard link, writing it could change a file somewhere else. Because a run may write more URL lists under other names, every other entry of the folder is checked too: a symbolic link, a junction, a device, or a regular file with more than one hard link is refused the same way, while plain files and plain folders are left alone. `check` then prints only `refused: competitor/<slug>/<file> ...`, naming the file, and exits 2. It removes nothing: delete that file yourself, then run `check` again. Plain files left by an earlier run are fine.
+
 A URL longer than 2048 characters is refused ("URL too long").
 
 ## draft.json
@@ -49,6 +51,20 @@ A section with nothing to show displays a `[GAP ...]` marker instead of a guess.
 ### Size limits
 
 A draft file (and `compare.json`) larger than 5 MB is refused. Each text value is cut to 8,192 characters when the file is read, and a cut value never passes a check (a URL, a status, a slug or a path). A report shows at most 4,000 characters of any one text.
+
+Counts are checked before the file is parsed, and a file over any of these limits is refused with exit 2 (`bad draft: ... too many ...` or `... nested more than 32 levels deep`):
+
+| Limit | At most |
+|---|---|
+| `source_records` | 500 |
+| `features`, `voc`, `jtbds`, `gaps`, `opportunities` (draft.json) | 200 each |
+| `features`, `your_side`, `openings`, `risks`, `next_steps`, `positioning`, `jobs_overlap`, `unanswered` (compare.json) | 200 each |
+| any `cites` list (a row, `product_identity`, `pricing.them`) | 50 |
+| any other list | 500 |
+| nesting (lists and objects inside each other) | 32 levels |
+| values in the whole file (every text, number, list and object counts) | 250,000 |
+
+Keep the records and rows that matter most; a brief needs far fewer than these.
 
 ### Example
 
@@ -102,7 +118,7 @@ A draft file (and `compare.json`) larger than 5 MB is refused. Each text value i
 
 ### Your-side cites
 
-A `cite` on your side is either the literal `you said` (a fact from the user's answers) or the path of a file in the user's repository, relative to its root, such as `README.md`, `src/app.ts`, `src/app.ts:12` or `docs/pricing.md#plans`. The report checks that the file exists inside the repository. An absolute path, a drive letter, a `..` segment, a `.env` file, a path over 1,024 characters or a missing file shows as **unverified**, with the reason. The report shows file cites, `you said` and unverified cites differently, so a reader can tell them apart.
+A `cite` on your side is either the literal `you said` (a fact from the user's answers) or the path of a file in the user's repository, relative to its root, such as `README.md`, `src/app.ts`, `src/app.ts:12` or `docs/pricing.md#plans`. The report checks that the path names a regular file inside the repository. An absolute path, a drive letter, a `..` segment, a `.env` file, a path over 1,024 characters, a missing file, a folder (including `.` and `src/`), and a symbolic link or junction show as **unverified**, with the reason. Cite the file itself, not a folder or a link to it. The report shows file cites, `you said` and unverified cites differently, so a reader can tell them apart.
 
 Openings, risks and next steps may cite such files too, next to row ids and fetched URLs. A cite that does not start with a URL scheme (`https:`, ...) is read as a path and checked the same way: a valid one shows as a verified file cite, an invalid one as **unverified**. Neither is ever labelled "inferred, no source" or "refused by the URL check".
 

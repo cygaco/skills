@@ -22,6 +22,14 @@
  * to MAX_FIELD characters as it is read, before anything looks at it. A cut
  * string carries a trailing NUL mark, so it can never pass a check (a URL, a
  * status, a slug or a path) that its full text would have failed.
+ *
+ * Counts: before the text is parsed, one linear pass over it refuses a file
+ * nested more than MAX_DEPTH levels deep, holding more than MAX_VALUES values,
+ * or with a list longer than its cap: the top-level lists in LIST_CAPS
+ * (source_records 500, every other row list 200), any "cites" list 50, and any
+ * other list 500. Counting stops at the cap, so a file with a million tiny
+ * records is refused before a single record is built. listField and citeList
+ * apply the same caps again to documents handed in already parsed.
  */
 
 const { checkUrl, citeKey } = require("./guard");
@@ -33,6 +41,26 @@ class DraftError extends Error {}
 
 const MAX_DRAFT_BYTES = 5 * 1024 * 1024;
 const CUT_MARK = String.fromCharCode(0);
+const MAX_DEPTH = 32;
+const MAX_VALUES = 250000;
+const MAX_CITES = 50;
+const MAX_OTHER_LIST = 500;
+/** Top-level lists of draft.json and compare.json, and how many items each may hold. */
+const LIST_CAPS = new Map([
+  ["source_records", 500],
+  ["features", 200],
+  ["voc", 200],
+  ["jtbds", 200],
+  ["gaps", 200],
+  ["opportunities", 200],
+  ["your_side", 200],
+  ["openings", 200],
+  ["risks", 200],
+  ["next_steps", 200],
+  ["positioning", 200],
+  ["jobs_overlap", 200],
+  ["unanswered", 200],
+]);
 
 const STATUSES = ["ok", "failed", "refused"];
 const SOURCE_CLASSES = ["product", "landing", "devdocs", "review", "appimg"];
@@ -57,6 +85,115 @@ function clampStrings(doc) {
   return doc;
 }
 
+/** The cap of a list: "cites" anywhere, a known top-level list, or any other list. */
+function listCap(key, atTop) {
+  if (key === "cites") return { cap: MAX_CITES, kind: "cites" };
+  if (atTop && LIST_CAPS.has(key)) return { cap: LIST_CAPS.get(key), kind: "named" };
+  return { cap: MAX_OTHER_LIST, kind: "other" };
+}
+
+/** Index of the quote that closes the string opened at text[at], or text.length. */
+function stringEnd(text, at) {
+  let j = at + 1;
+  while (j < text.length) {
+    const d = text.charCodeAt(j);
+    if (d === 0x5c) j += 2;
+    else if (d === 0x22) return j;
+    else j++;
+  }
+  return text.length;
+}
+
+/** An object key as JSON.parse will read it (escapes decoded). A long key is never a known one. */
+function keyText(text, at, end) {
+  if (end - at > 160) return "";
+  const raw = text.slice(at + 1, end);
+  if (!raw.includes("\\")) return raw;
+  try {
+    return String(JSON.parse(text.slice(at, end + 1)));
+  } catch (e) {
+    return raw;
+  }
+}
+
+/** The message for a list over its cap; `stack` ends with that list. */
+function tooMany(stack, label) {
+  let where = "";
+  for (let k = 1; k < stack.length - 1; k++) {
+    const f = stack[k];
+    where += f.arr ? `[${f.n - 1}]` : `${where ? "." : ""}${f.key}`;
+  }
+  const list = stack[stack.length - 1];
+  const at = printable(where) || "the top level";
+  if (list.kind === "named") return `${label} has too many ${at} (more than ${list.cap}); keep the ${list.cap} that matter most`;
+  if (list.kind === "cites") return `${label} has too many cites in ${at} (more than ${list.cap})`;
+  return `${label} has too many items in the list ${at} (more than ${list.cap})`;
+}
+
+/**
+ * One linear pass over the JSON text, before it is parsed: refuses (DraftError)
+ * nesting deeper than MAX_DEPTH, more than MAX_VALUES values, and any list over
+ * its cap. Nothing is built per item; each count stops at its cap. Text that is
+ * not valid JSON is left for JSON.parse to reject.
+ */
+function scanLimits(text, label) {
+  const stack = [{ arr: false, need: true, expectKey: false, key: "" }];
+  const len = text.length;
+  let values = 0;
+  let i = 0;
+  while (i < len) {
+    const c = text.charCodeAt(i);
+    const top = stack[stack.length - 1];
+    if (c === 0x20 || c === 0x09 || c === 0x0a || c === 0x0d) {
+      i++;
+      continue;
+    }
+    if (c === 0x3a) {
+      // ":" - an object member's value follows
+      if (!top.arr) top.need = true;
+      i++;
+      continue;
+    }
+    if (c === 0x2c) {
+      // "," - the next item, or the next key
+      if (top.arr) top.need = true;
+      else top.expectKey = true;
+      i++;
+      continue;
+    }
+    if (c === 0x5d || c === 0x7d) {
+      if (stack.length > 1) stack.pop();
+      i++;
+      continue;
+    }
+    if (c === 0x22 && !top.arr && top.expectKey) {
+      const end = stringEnd(text, i);
+      top.key = keyText(text, i, end);
+      top.expectKey = false;
+      i = end + 1;
+      continue;
+    }
+    if (top.need) {
+      // the first character of a value: count it once
+      top.need = false;
+      if (top.arr && ++top.n > top.cap) throw new DraftError(tooMany(stack, label));
+      if (++values > MAX_VALUES) throw new DraftError(`${label} holds more than ${MAX_VALUES} values; a draft needs far fewer`);
+    }
+    if (c === 0x22) {
+      i = stringEnd(text, i) + 1;
+      continue;
+    }
+    if (c === 0x7b || c === 0x5b) {
+      if (stack.length > MAX_DEPTH) throw new DraftError(`${label} is nested more than ${MAX_DEPTH} levels deep; a draft needs only a few levels`);
+      if (c === 0x5b) {
+        const { cap, kind } = listCap(top.arr ? "" : top.key, stack.length === 2 && !top.arr);
+        stack.push({ arr: true, need: true, n: 0, cap, kind });
+      } else stack.push({ arr: false, need: false, expectKey: true, key: "" });
+    }
+    i++;
+  }
+}
+
 function readJsonFile(file, label, shownAs) {
   const got = readCapped(file, MAX_DRAFT_BYTES);
   if (!got.ok && got.why === "too-big") {
@@ -65,6 +202,7 @@ function readJsonFile(file, label, shownAs) {
   if (!got.ok) throw new DraftError(`${label} not found or unreadable: ${printable(shownAs || file)}`);
   let text = got.buf.toString("utf8");
   if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+  scanLimits(text, label);
   let doc;
   try {
     doc = JSON.parse(text);
@@ -97,6 +235,8 @@ function listField(doc, key, label, opts) {
   const v = doc[key];
   if (v === undefined || v === null) return [];
   if (!Array.isArray(v)) throw new DraftError(`${label}.${key} must be a list`);
+  const cap = LIST_CAPS.get(key) || MAX_OTHER_LIST;
+  if (v.length > cap) throw new DraftError(`${label} has too many ${key} (more than ${cap}); keep the ${cap} that matter most`);
   v.forEach((x, i) => {
     const okObj = x && typeof x === "object" && !Array.isArray(x);
     const okStr = opts && opts.strings && typeof x === "string";
@@ -108,7 +248,10 @@ function listField(doc, key, label, opts) {
 function citeList(v) {
   if (v === undefined || v === null) return [];
   if (typeof v === "string") return [v];
-  if (Array.isArray(v)) return v;
+  if (Array.isArray(v)) {
+    if (v.length > MAX_CITES) throw new DraftError(`a row has too many cites (more than ${MAX_CITES})`);
+    return v;
+  }
   return [v];
 }
 
@@ -353,6 +496,12 @@ module.exports = {
   FIRST_PARTY,
   SOURCE_CLASSES,
   MAX_DRAFT_BYTES,
+  MAX_DEPTH,
+  MAX_VALUES,
+  MAX_CITES,
+  MAX_OTHER_LIST,
+  LIST_CAPS,
+  scanLimits,
   readJsonFile,
   clampStrings,
   describeValue,

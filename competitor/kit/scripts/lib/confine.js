@@ -9,6 +9,17 @@
  * or resolves outside the repository's real path. `report.js check` prepares
  * the folder; brief and compare prepare it again before they write.
  *
+ * Run files: after preparing the folder, `check` also judges the files a run
+ * writes there (draft.json, compare.json and urls.txt, written with Claude's
+ * own file tool, and the four reports). Any of them that already exists and is
+ * a symbolic link, a junction, a folder, a device, or a regular file with more
+ * than one hard link is refused by name: a file tool would write through it to
+ * a file elsewhere. A run may also write more URL lists under other names
+ * (check-url reads at most 200 URLs a file), so every other entry of the folder
+ * is judged too: a symbolic link, a junction, a device, or a regular file with
+ * more than one hard link is refused by name; plain files and plain folders are
+ * left alone. Nothing is removed; the message asks the user to delete it.
+ *
  * Writes: every output goes to a new temporary file in the checked folder
  * (opened with "wx", so it never reuses an existing name or link), which is then
  * renamed over the target. A pre-existing output that is a hard link to a file
@@ -24,8 +35,10 @@
  * 64 KB.
  *
  * Path cites: repo-relative only. No absolute path, no drive letter, no ".."
- * segment, no .env file, and the file must exist inside the repo root (also
- * after resolving links). Anything else renders as "unverified".
+ * segment, no .env file, and the path must name a regular file inside the repo
+ * root (also after resolving links in the folders on the way). A folder
+ * (including "."), a symbolic link or junction, a device and a missing path
+ * render as "unverified".
  */
 
 const fs = require("fs");
@@ -33,6 +46,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { refuseSlug } = require("./slug");
 const { hasUnsafeChar } = require("./guard");
+const { printable } = require("./text");
 
 class RefusedError extends Error {}
 
@@ -135,6 +149,66 @@ function prepareDir(repoRoot, slug) {
   const dirReal = ensureDir(dir, rootReal, rel);
   if (!samePath(path.dirname(dirReal), baseReal)) throw new RefusedError(`${rel} resolves outside ${OUT_FOLDER}/`);
   return { root, rootReal, base, dir, baseReal, dirReal, slug, rel };
+}
+
+/** The files a run writes into competitor/<slug>/: Claude's three, then the four reports. */
+function runFileNames(slug) {
+  return ["draft.json", "compare.json", "urls.txt", `${slug}.competitor.md`, `${slug}.competitor.html`, `${slug}.compare.md`, `${slug}.compare.html`];
+}
+
+/** lstat of one entry of the prepared folder, or null when it is gone. */
+function lstatEntry(prep, name, shown) {
+  try {
+    return fs.lstatSync(path.join(prep.dir, name));
+  } catch (e) {
+    if (e.code === "ENOENT") return null;
+    throw new RefusedError(`${shown} cannot be inspected (${e.code || "error"}); delete it, then run check again`);
+  }
+}
+
+function refuseLinked(st, shown) {
+  if (st.isSymbolicLink()) {
+    throw new RefusedError(`${shown} is a symbolic link or junction, so writing it would change a file elsewhere; delete it, then run check again (nothing was removed)`);
+  }
+  if (st.isFile() && st.nlink > 1) {
+    throw new RefusedError(`${shown} has ${st.nlink} hard links, so writing it would change a file elsewhere too; delete it, then run check again (nothing was removed)`);
+  }
+}
+
+/**
+ * Refuses (RefusedError, naming the file) when a run file already exists in
+ * the prepared folder and is not a plain regular file with a single link, or
+ * when any other entry of the folder is a link, a device or a file with more
+ * than one hard link (a URL list may have another name than urls.txt).
+ * Removes nothing. `check` calls this right after prepareDir.
+ */
+function refuseRunFileLinks(prep) {
+  const names = runFileNames(prep.slug);
+  for (const name of names) {
+    const shown = `${prep.rel}${name}`;
+    const st = lstatEntry(prep, name, shown);
+    if (!st) continue;
+    refuseLinked(st, shown);
+    if (!st.isFile()) {
+      throw new RefusedError(`${shown} exists and is not a regular file (a folder or a device); delete it, then run check again (nothing was removed)`);
+    }
+  }
+  let entries;
+  try {
+    entries = fs.readdirSync(prep.dir);
+  } catch (e) {
+    throw new RefusedError(`${prep.rel} cannot be listed (${e.code || "error"})`);
+  }
+  for (const name of entries.sort()) {
+    if (names.includes(name)) continue;
+    const shown = `${prep.rel}${printable(name)}`;
+    const st = lstatEntry(prep, name, shown);
+    if (!st) continue;
+    refuseLinked(st, shown);
+    if (!st.isFile() && !st.isDirectory()) {
+      throw new RefusedError(`${shown} is a device or another special file, not a regular file or a folder; delete it, then run check again (nothing was removed)`);
+    }
+  }
 }
 
 /** Checks both folders again: still real folders, still where they were. */
@@ -312,7 +386,16 @@ function verifyCite(raw, repoRoot) {
   const root = path.resolve(repoRoot);
   const abs = path.resolve(root, p);
   if (!inside(abs, root)) return bad("outside the repository");
-  if (!fs.existsSync(abs)) return bad("no such file in the repository");
+  let st = null;
+  try {
+    st = fs.lstatSync(abs);
+  } catch (e) {
+    st = null;
+  }
+  if (!st) return bad("no such file in the repository");
+  if (st.isSymbolicLink()) return bad("a symbolic link or junction; cite the file itself");
+  if (st.isDirectory()) return bad("a folder, not a file; cite a file inside it");
+  if (!st.isFile()) return bad("not a regular file");
   if (!inside(real(abs), real(root))) return bad("links outside the repository");
   return { kind: "file", text: segs.filter((s) => s && s !== ".").join("/") };
 }
@@ -325,6 +408,8 @@ module.exports = {
   inside,
   outputDir,
   prepareDir,
+  runFileNames,
+  refuseRunFileLinks,
   recheckDir,
   writeOutputs,
   readCapped,
