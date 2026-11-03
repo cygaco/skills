@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>{{title}}</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #0e0e0e; --ink-muted: #555; --ink-faint: #8a8a8a;
+    --rule: #e0ddd8; --bg: #faf9f6; --bg-card: #fff;
+    --green: #1a5c3a; --green-bg: #eaf5ee;
+    --amber: #7a4a00; --amber-bg: #fdf3de;
+    --red: #7a1a1a; --red-bg: #fdeaea;
+    --blue: #0f3f75; --blue-bg: #e6f0fb;
+    --serif: Georgia, "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.7; max-width: 960px; margin: 0 auto; padding: 3rem 2rem 6rem; }
+  .doc-header { border-bottom: 2px solid var(--ink); padding-bottom: 2rem; margin-bottom: 3rem; }
+  .doc-meta { font-family: var(--mono); font-size: 12px; color: var(--ink-muted); margin-bottom: 1rem; }
+  .kind-badge { display: inline-block; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2em 0.7em; border-radius: 4px; background: var(--green-bg); color: var(--green); margin-bottom: 1rem; }
+  h1 { font-family: var(--serif); font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.1; letter-spacing: -0.01em; margin-bottom: 0.8rem; }
+  .tagline { font-size: 1rem; color: var(--ink-muted); max-width: 640px; line-height: 1.6; }
+  section { margin-bottom: 3rem; padding-bottom: 3rem; border-bottom: 1px solid var(--rule); }
+  section:last-of-type { border-bottom: none; }
+  .section-label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 1.2rem; }
+  h2 { font-family: var(--serif); font-size: 1.7rem; line-height: 1.2; margin-bottom: 1rem; }
+  h3 { font-size: 0.85rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-muted); margin: 1.6rem 0 0.5rem; }
+  p { margin-bottom: 0.9rem; }
+  p.note { border-left: 3px solid var(--rule); padding-left: 0.9rem; color: var(--ink-muted); }
+  ul, ol { margin: 0.6rem 0 1rem 1.4rem; }
+  li { margin-bottom: 0.35rem; }
+  code { font-family: var(--mono); font-size: 0.85em; background: var(--bg-card); border: 1px solid var(--rule); padding: 0.1em 0.4em; border-radius: 3px; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.93rem; }
+  th, td { border: 1px solid var(--rule); padding: 0.5rem 0.75rem; vertical-align: top; text-align: left; overflow-wrap: anywhere; }
+  th { background: var(--bg-card); font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-muted); }
+  a { color: var(--blue); }
+  .gap-marker { display: inline-block; font-family: var(--mono); font-size: 0.78rem; padding: 0.15em 0.55em; border-radius: 4px; background: var(--amber-bg); color: var(--amber); }
+  .label { display: inline-block; font-family: var(--mono); font-size: 0.75rem; padding: 0.05em 0.5em; border-radius: 4px; }
+  .label-inferred { background: var(--amber-bg); color: var(--amber); }
+  .label-unverified, .label-refused { background: var(--red-bg); color: var(--red); }
+  .label-note { background: var(--blue-bg); color: var(--blue); }
+  .cite-file { color: var(--green); }
+  .cite-said { font-style: italic; color: var(--blue); }
+  .cite-bad { font-family: var(--mono); font-size: 0.85em; color: var(--red); }
+  .doc-footer { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+  strong { font-weight: 600; }
+  em { font-style: italic; }
+</style>
+</head>
+<body>
+
+<header class="doc-header">
+  <div class="kind-badge">Comparison &middot; report only, advice only</div>
+  <h1>{{title}}</h1>
+  <p class="doc-meta">{{brief_line}}</p>
+  <p class="tagline">This compares a competitor's public pages with your project. Their side cites pages fetched for the brief; your side cites files in this repository or what you said. Nothing in your project was changed.</p>
+</header>
+
+{{sections}}
+
+<footer class="doc-footer">
+  Rendered from compare.json and draft.json &middot; comparison generated_at {{generated_at}} &middot; brief date {{brief_date}} &middot; GAP markers {{gap_count}}
+</footer>
+
+</body>
+</html>

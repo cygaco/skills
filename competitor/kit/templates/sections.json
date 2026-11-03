@@ -1,0 +1,40 @@
+{
+  "about": "Sections of a competitor brief, in the order they appear. The report script knows each id; you may change the order and the titles, but every id must appear exactly once.",
+  "sections": [
+    {
+      "id": "product_identity",
+      "title": "Product identity",
+      "purpose": "What the product is and for whom, in two or three sentences, citing a fetched page from the product's own site. The name, site and how it was identified are shown too."
+    },
+    {
+      "id": "jtbds",
+      "title": "Jobs to be done",
+      "purpose": "3-5 jobs the product does for its users, each with a one-line reason and the pages that show it. A job with no fetched source is labelled inferred, no source."
+    },
+    {
+      "id": "features",
+      "title": "Features",
+      "purpose": "Table of name, description, build complexity (S/M/L/XL), how core it is (1-5) and the fetched page that shows it. A feature without a fetched source is dropped."
+    },
+    {
+      "id": "voc",
+      "title": "Voice of customer",
+      "purpose": "Customer quotes copied word for word, with sentiment, the fetched page and the retrieval date. A quote without a fetched source is dropped."
+    },
+    {
+      "id": "gaps",
+      "title": "Gaps",
+      "purpose": "3-7 weaknesses with a severity (low, medium or high) and the pages that show them. A gap with no fetched source is labelled inferred, no source."
+    },
+    {
+      "id": "opportunities",
+      "title": "Opportunities",
+      "purpose": "3-5 openings, each citing the gap or feature rows it builds on (G1, F2, ...) or fetched pages."
+    },
+    {
+      "id": "source_attribution_log",
+      "title": "Source attribution log",
+      "purpose": "Every page recorded in the run: fetched, not fetched, and any record the URL check refuses, plus every dropped row and ignored cite."
+    }
+  ]
+}

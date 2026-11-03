@@ -1,0 +1,55 @@
+{
+  "about": "Sections of a comparison, in the order they appear. The report script knows each id; you may change the order and the titles, but every id must appear exactly once.",
+  "sections": [
+    {
+      "id": "features",
+      "title": "Features side by side",
+      "purpose": "For each feature: the competitor's status (yes, no or partial) with the fetched page that shows it, and yours with the file that shows it or 'you said'."
+    },
+    {
+      "id": "jobs_overlap",
+      "title": "Overlapping jobs",
+      "purpose": "Which of the competitor's jobs your product also does: full, partial or none."
+    },
+    {
+      "id": "openings",
+      "title": "Openings for you",
+      "purpose": "The competitor's gaps that are openings for you, citing the brief's rows (G1, F2, ...) or fetched pages."
+    },
+    {
+      "id": "pricing",
+      "title": "Pricing",
+      "purpose": "The competitor's pricing from the fetched pages, and yours from your files or your answer."
+    },
+    {
+      "id": "positioning",
+      "title": "Positioning options",
+      "purpose": "Two or three one-line positioning statements for your product."
+    },
+    {
+      "id": "risks",
+      "title": "Risks",
+      "purpose": "Where the competitor could hurt you, citing the brief's rows or fetched pages."
+    },
+    {
+      "id": "next_steps",
+      "title": "Recommended next steps",
+      "purpose": "Advice only. Nothing here is done for you."
+    },
+    {
+      "id": "your_side",
+      "title": "Your side",
+      "purpose": "Facts about your product, each citing a file in your repository or 'you said'. A cite that cannot be checked is labelled unverified."
+    },
+    {
+      "id": "unanswered",
+      "title": "Not answered",
+      "purpose": "Questions you skipped. Nothing in the report fills them in."
+    },
+    {
+      "id": "sources",
+      "title": "Sources",
+      "purpose": "The brief's date, the fetched pages this comparison cites, unverified cites, dropped rows and ignored cites."
+    }
+  ]
+}

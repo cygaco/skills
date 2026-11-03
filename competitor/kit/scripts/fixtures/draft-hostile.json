@@ -1,0 +1,44 @@
+{
+  "generated_at": "2026-11-01T09:30:00Z",
+  "target": {
+    "slug": "hostile-co",
+    "name": "Hostile <script>alert(1)</script> Co",
+    "url": "https://www.example.com/",
+    "resolved_via": "<b onmouseover=alert(1)>search</b>"
+  },
+  "source_records": [
+    { "url": "https://www.example.com/", "source_class": "product", "status": "ok", "length": 1000, "retrieved_at": "2026-11-01T09:01:00Z" },
+    { "url": "http://127.0.0.1/admin", "source_class": "product", "status": "ok", "length": 50, "retrieved_at": "2026-11-01T09:02:00Z" },
+    { "url": "javascript:alert(1)", "source_class": "review", "status": "ok", "retrieved_at": "2026-11-01T09:03:00Z" },
+    { "url": "http://[::ffff:169.254.169.254]/latest/meta-data", "source_class": "review", "status": "failed", "failure_reason": "timeout <img src=x onerror=alert(1)>", "retrieved_at": "2026-11-01T09:04:00Z" },
+    { "url": "https://user:secret@www.example.com/", "source_class": "review", "status": "ok", "retrieved_at": "2026-11-01T09:05:00Z" },
+    { "url": "https://reviews.example.org/hostile", "source_class": "review", "status": "ok", "length": 4000, "retrieved_at": "2026-11-01T09:06:00Z" },
+    { "url": "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==", "source_class": "review", "status": "refused", "failure_reason": "the URL check refused it", "retrieved_at": "2026-11-01T09:07:00Z" }
+  ],
+  "product_identity": {
+    "summary": "<img src=x onerror=alert(1)> [click me](javascript:alert(1)) a notes app",
+    "cites": ["https://reviews.example.org/hostile"]
+  },
+  "jtbds": [
+    { "job": "<script>alert('job')</script> capture notes", "why": "see https://evil.example/phish and www.evil.example", "cites": [] },
+    { "job": "[x](data:text/html;base64,PHNjcmlwdD4=) organise", "cites": ["http://127.0.0.1/admin"] }
+  ],
+  "features": [
+    { "name": "Sync", "description": "cited to a refused record", "complexity": "M", "coreness": 3, "evidence_url": "http://127.0.0.1/admin" },
+    { "name": "Search ![pixel](https://evil.example/p.png)", "description": "<a href=\"javascript:alert(1)\">x</a> | col | break `code` &lt;b&gt;", "complexity": "XXL", "coreness": 9, "evidence_url": "https://www.example.com/" },
+    { "name": "Export", "description": "cited to a page never fetched", "complexity": "S", "coreness": 2, "evidence_url": "https://never-fetched.example.com/" }
+  ],
+  "voc": [
+    { "quote": "Great app {{sections}} <iframe src=\"https://evil.example\"></iframe> mail me at someone@evil.example", "sentiment": "positive", "source_url": "https://reviews.example.org/hostile", "retrieved": "2026-11-01" },
+    { "quote": "A quote with no source at all", "sentiment": "negative", "source_url": "" },
+    { "quote": "A quote cited to a javascript URL", "sentiment": "negative", "source_url": "javascript:alert(1)" }
+  ],
+  "gaps": [
+    { "gap": "[ref]: javascript:alert(1)", "severity": "HIGH" },
+    { "gap": "# Heading injection <svg onload=alert(1)>", "severity": "bogus", "cites": ["https://reviews.example.org/hostile"] }
+  ],
+  "opportunities": [
+    { "opportunity": "<https://evil.example/autolink>", "cites": ["G1"] },
+    { "opportunity": "Build on search", "cites": ["F2", "G9"] }
+  ]
+}

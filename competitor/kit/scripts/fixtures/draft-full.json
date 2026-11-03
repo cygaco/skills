@@ -1,0 +1,49 @@
+{
+  "generated_at": "2026-11-01T09:30:00Z",
+  "target": {
+    "slug": "acme-notes",
+    "name": "Acme Notes",
+    "url": "https://www.example.com/",
+    "resolved_via": "the URL the user gave"
+  },
+  "source_records": [
+    { "url": "https://www.example.com/", "source_class": "product", "status": "ok", "length": 18400, "retrieved_at": "2026-11-01T09:01:12Z" },
+    { "url": "https://www.example.com/pricing", "source_class": "product", "status": "ok", "length": 9600, "retrieved_at": "2026-11-01T09:02:40Z" },
+    { "url": "https://www.example.com/features", "source_class": "product", "status": "ok", "length": 14250, "retrieved_at": "2026-11-01T09:03:05Z" },
+    { "url": "https://docs.example.com/getting-started", "source_class": "devdocs", "status": "ok", "length": 22100, "retrieved_at": "2026-11-01T09:04:31Z" },
+    { "url": "https://reviews.example.org/acme-notes", "source_class": "review", "status": "ok", "length": 31000, "retrieved_at": "2026-11-01T09:08:17Z" },
+    { "url": "https://forum.example.net/t/acme-notes-thoughts", "source_class": "review", "status": "ok", "length": 12800, "retrieved_at": "2026-11-01T09:10:02Z" },
+    { "url": "https://www.example.com/changelog", "source_class": "product", "status": "failed", "failure_reason": "HTTP 404", "retrieved_at": "2026-11-01T09:05:12Z" },
+    { "url": "http://192.168.1.10/admin", "source_class": "landing", "status": "refused", "failure_reason": "the URL check refused it: IPv4 192.168.0.0/16 (private)", "retrieved_at": "2026-11-01T09:05:40Z" }
+  ],
+  "product_identity": {
+    "summary": "Acme Notes is a shared note-taking app for small teams. It pairs a fast editor with team spaces and a public API, and sells per seat after a free tier.",
+    "cites": ["https://www.example.com/", "https://www.example.com/pricing"]
+  },
+  "jtbds": [
+    { "job": "Capture a thought before it is lost", "why": "The home page leads with one-keystroke capture from anywhere.", "cites": ["https://www.example.com/"] },
+    { "job": "Keep a team's notes in one place", "why": "Team spaces and shared folders are the paid tier's headline.", "cites": ["https://www.example.com/pricing"] },
+    { "job": "Find an old note in seconds", "why": "Full-text search across spaces is featured and praised in reviews.", "cites": ["https://www.example.com/features", "https://reviews.example.org/acme-notes"] }
+  ],
+  "features": [
+    { "name": "Quick capture", "description": "Global shortcut opens a capture window from any app.", "complexity": "M", "coreness": 5, "evidence_url": "https://www.example.com/features" },
+    { "name": "Team spaces", "description": "Shared folders with per-space permissions.", "complexity": "L", "coreness": 4, "evidence_url": "https://www.example.com/pricing" },
+    { "name": "Full-text search", "description": "Search across every space, with filters by author and date.", "complexity": "L", "coreness": 4, "evidence_url": "https://www.example.com/features" },
+    { "name": "Public API", "description": "REST API with personal tokens for scripts and integrations.", "complexity": "XL", "coreness": 2, "evidence_url": "https://docs.example.com/getting-started" }
+  ],
+  "voc": [
+    { "quote": "Capture is instant, which is the whole reason I switched.", "sentiment": "positive", "source_url": "https://reviews.example.org/acme-notes", "retrieved": "2026-11-01" },
+    { "quote": "Search is great, but offline mode loses edits sometimes.", "sentiment": "mixed", "source_url": "https://forum.example.net/t/acme-notes-thoughts", "retrieved": "2026-11-01" },
+    { "quote": "Per-seat pricing gets expensive past ten people.", "sentiment": "negative", "source_url": "https://reviews.example.org/acme-notes", "retrieved": "2026-11-01" }
+  ],
+  "gaps": [
+    { "gap": "Offline mode is unreliable and can lose edits.", "severity": "high", "cites": ["https://forum.example.net/t/acme-notes-thoughts"] },
+    { "gap": "Pricing climbs steeply for teams past ten seats.", "severity": "medium", "cites": ["https://reviews.example.org/acme-notes", "https://www.example.com/pricing"] },
+    { "gap": "The API needs a developer to be useful.", "severity": "low", "cites": ["https://docs.example.com/getting-started"] }
+  ],
+  "opportunities": [
+    { "opportunity": "Lead with offline-first editing that never loses a keystroke.", "cites": ["G1", "F1"] },
+    { "opportunity": "Flat team pricing for groups of ten to fifty.", "cites": ["G2", "https://www.example.com/pricing"] },
+    { "opportunity": "No-code automations instead of a raw API.", "cites": ["G3", "F4"] }
+  ]
+}

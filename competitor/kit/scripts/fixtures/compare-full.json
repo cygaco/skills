@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-11-03T10:00:00Z",
+  "features": [
+    { "name": "Quick capture", "them": { "status": "yes", "evidence_url": "https://www.example.com/features" }, "you": { "status": "yes", "cite": "src/editor.ts" } },
+    { "name": "Team spaces", "them": { "status": "yes", "evidence_url": "https://www.example.com/pricing" }, "you": { "status": "no", "cite": "you said" } },
+    { "name": "Offline mode", "them": { "status": "partial" }, "you": { "status": "partial", "cite": "docs/offline.md" } },
+    { "name": "Export", "them": { "status": "no", "evidence_url": "http://127.0.0.1/export" }, "you": { "status": "yes", "cite": "../outside.txt" } },
+    { "name": "Sync", "them": { "status": "yes", "evidence_url": "https://www.example.com/" }, "you": { "status": "partial", "cite": "/etc/passwd" } },
+    { "name": "Full-text search", "them": { "status": "yes", "evidence_url": "https://www.example.com/features" }, "you": { "status": "yes", "cite": "C:\\Windows\\win.ini" } },
+    { "name": "Templates", "them": { "status": "partial", "evidence_url": "https://docs.example.com/getting-started" }, "you": { "status": "no", "cite": "README.md#features" } }
+  ],
+  "jobs_overlap": [
+    { "job": "J1. Capture a thought before it is lost", "overlap": "full", "note": "Both lead with fast capture." },
+    { "job": "J2. Keep a team's notes in one place", "overlap": "none", "note": "You have no team features yet." },
+    "J3. Find an old note in seconds"
+  ],
+  "openings": [
+    { "opening": "Offline editing that never loses a keystroke.", "cites": ["G1"] },
+    { "opening": "A flat price for small teams.", "cites": ["G2", "https://www.example.com/pricing"] },
+    { "opening": "A guess with nothing behind it." }
+  ],
+  "pricing": {
+    "them": { "summary": "Free tier, then a per-seat monthly price.", "cites": ["https://www.example.com/pricing"] },
+    "you": { "summary": "Free while in beta.", "cite": "you said" }
+  },
+  "positioning": [
+    "The notes app that works offline, every time.",
+    "Fast capture for freelancers, without team overhead.",
+    "Flat pricing that does not punish growth."
+  ],
+  "risks": [
+    { "risk": "Their capture is already fast, so speed alone will not win.", "cites": ["F1"] },
+    "They could ship a better offline mode."
+  ],
+  "next_steps": [
+    "Interview five users who left the competitor over offline problems.",
+    "Prototype a conflict-free offline sync and test it on flaky networks."
+  ],
+  "your_side": [
+    { "fact": "A notes editor for freelancers.", "cite": "README.md" },
+    { "fact": "Written in TypeScript with no server.", "cite": "package.json" },
+    { "fact": "Targets freelancers, not teams.", "cite": "you said" },
+    { "fact": "Has secret settings.", "cite": ".env" }
+  ],
+  "unanswered": [
+    "What budget and team size do you have?"
+  ]
+}

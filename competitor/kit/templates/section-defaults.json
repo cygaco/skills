@@ -1,0 +1,21 @@
+{
+  "about": "What a section shows when the draft gives it nothing to render: a visible [GAP ...] marker, one line, never a guess. Every value must keep the [GAP ...] shape.",
+  "brief": {
+    "product_identity": "[GAP — identity — no product identity in the draft]",
+    "jtbds": "[GAP — jobs — no jobs to be done in the draft]",
+    "features": "[GAP — features — no feature row has a fetched source]",
+    "voc": "[GAP — voice of customer — no quote has a fetched source]",
+    "gaps": "[GAP — gaps — no weaknesses in the draft]",
+    "opportunities": "[GAP — opportunities — no openings in the draft]"
+  },
+  "compare": {
+    "features": "[GAP — features — no features compared]",
+    "jobs_overlap": "[GAP — jobs — no overlapping jobs in the comparison]",
+    "openings": "[GAP — openings — no openings in the comparison]",
+    "pricing": "[GAP — pricing — no pricing comparison]",
+    "positioning": "[GAP — positioning — no positioning statements]",
+    "risks": "[GAP — risks — no risks in the comparison]",
+    "next_steps": "[GAP — next steps — no recommended next steps]",
+    "your_side": "[GAP — your side — no facts about your product]"
+  }
+}
