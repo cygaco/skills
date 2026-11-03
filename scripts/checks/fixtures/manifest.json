@@ -211,6 +211,33 @@
       "expect": { "exit": 1, "hits": [{ "at": "(root)", "check": "packs", "what": "zero packs found" }] }
     },
     {
+      "case": "two-commands",
+      "files": ["two-commands/demo/pack.json", "two-commands/demo/command/extra.md"],
+      "expect": { "exit": 1, "hits": [{ "at": "demo/pack.json:5", "check": "one-command", "what": "2 command files without an extraCommands entry" }] }
+    },
+    {
+      "case": "extra-reason-short",
+      "files": ["extra-reason-short/demo/pack.json", "extra-reason-short/demo/command/extra.md"],
+      "expect": { "exit": 1, "hits": [{ "at": "demo/pack.json:6", "check": "one-command", "what": "needs a reason" }] }
+    },
+    {
+      "case": "colon-command",
+      "files": [],
+      "build": "colon-command",
+      "expect": { "exit": 1, "hits": [{ "at": "demo/pack.json:5", "check": "one-command", "what": "colon subcommand" }] }
+    },
+    {
+      "case": "nested-command",
+      "files": [],
+      "build": "nested-command",
+      "expect": { "exit": 1, "hits": [{ "at": "demo/pack.json:5", "check": "one-command", "what": "sits in a subfolder" }] }
+    },
+    {
+      "case": "extra-commands-ok",
+      "files": ["extra-commands-ok/demo/pack.json", "extra-commands-ok/demo/command/extra.md"],
+      "expect": { "exit": 0, "hits": [], "text": ["2 command files, 1 allowed by extraCommands", "standalone-pack: 1 packs, 0 failures"] }
+    },
+    {
       "case": "usage-error",
       "files": [],
       "args": ["--no-such-flag"],

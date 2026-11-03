@@ -1,0 +1,24 @@
+{
+  "name": "demo",
+  "version": "0.0.0",
+  "description": "Fixture: a second command listed in extraCommands with a placeholder reason",
+  "commands": ["/demo", "/extra"],
+  "extraCommands": [{ "command": "/extra", "file": "command/extra.md", "reason": "n/a" }],
+  "install": [
+    { "from": "command/demo.md", "to": ".claude/commands/demo.md" },
+    { "from": "command/extra.md", "to": ".claude/commands/extra.md" },
+    { "from": "kit", "to": ".claude/demo" }
+  ],
+  "selfcheck": "node .claude/demo/scripts/selfcheck.js",
+  "files": [
+    "README.md",
+    "command/demo.md",
+    "command/extra.md",
+    "kit/guides/guide.md",
+    "kit/guides/other.md",
+    "kit/scripts/lib/util.js",
+    "kit/scripts/selfcheck.js",
+    "kit/templates/page.tmpl.md",
+    "pack.json"
+  ]
+}

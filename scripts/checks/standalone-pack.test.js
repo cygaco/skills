@@ -23,7 +23,11 @@
  *        scripts/checks/fixtures/ skips the shape and hash tiers only.
  *   (ii) Each pack (a top-level folder holding pack.json), installed into an empty temp
  *        project through pack.json.install: install, files-list, install-from, selfcheck,
- *        the static require and __dirname walk (require, dirname), link closure (d3-link).
+ *        the static require and __dirname walk (require, dirname), link closure (d3-link),
+ *        and one command per pack (one-command): exactly one command file (command/ plus
+ *        anything installed into .claude/commands/), no colon subcommand and no command
+ *        file in a subfolder, unless pack.json "extraCommands" lists the extra one as
+ *        { "command", "file", "reason" } with a reason of 20 characters or more.
  *
  * LOCAL LISTS (environment only; there is no default path)
  *   STANDALONE_PERSONAL_TOKENS   file, one token per line, case-insensitive substring match
@@ -55,6 +59,7 @@ const ENV_STRICT = 'STANDALONE_REQUIRE_LOCAL';
 const KEEP_TMP = process.env.KEEP_TMP === '1';
 const IS_WIN = process.platform === 'win32';
 const PRINT_CAP = 40;
+const MIN_EXTRA_REASON = 20;
 const SELFCHECK_TIMEOUT_MS = 10 * 60 * 1000;
 const BUILTINS = new Set(builtinModules);
 const USAGE = 'usage: node scripts/checks/standalone-pack.test.js [--root <dir>] [--self-test]';
@@ -769,6 +774,57 @@ function checkPack(pack, report, ctx) {
     report.check('SKIP', 'install-from', 'install or files is malformed (see pack-json)');
   }
 
+  // (o) One command per pack. The pack's command files are every file under command/ plus
+  // every file installed into .claude/commands/. Exactly one of them may be unlisted in
+  // pack.json extraCommands; each listed one needs a reason. A command name with a colon in
+  // it, or a command file in a subfolder (which Claude Code turns into one), fails unless listed.
+  {
+    const fails = [];
+    const cmdLine = lineOfText(text, '"commands"');
+    const extraLine = text.includes('"extraCommands"') ? lineOfText(text, '"extraCommands"') : cmdLine;
+    const underCommands = (to) => to === '.claude/commands' || to.startsWith('.claude/commands/');
+    const cmdFiles = new Set(disk.filter((f) => f.startsWith('command/')));
+    if (installOk) {
+      for (const e of pj.install) {
+        if (!underCommands(normRel(e.to))) continue;
+        const from = normRel(e.from);
+        if (diskSet.has(from)) cmdFiles.add(from);
+        else for (const f of disk) if (f.startsWith(`${from}/`)) cmdFiles.add(f);
+      }
+    }
+    const commands = isStrArr(pj.commands) ? pj.commands : [];
+    let extras = [];
+    if (pj.extraCommands !== undefined) {
+      const shapeOk = Array.isArray(pj.extraCommands) && pj.extraCommands.every((x) => x && typeof x === 'object' && typeof x.command === 'string' && typeof x.file === 'string' && typeof x.reason === 'string');
+      if (shapeOk) extras = pj.extraCommands;
+      else fails.push({ where: at('pack.json', extraLine), what: 'extraCommands must be an array of { command, file, reason } strings' });
+    }
+    const extraFiles = new Set();
+    const extraCmds = new Set();
+    for (const x of extras) {
+      const file = normRel(x.file);
+      if (extraFiles.has(file)) fails.push({ where: at('pack.json', extraLine), what: `extraCommands lists ${file} twice` });
+      extraFiles.add(file);
+      extraCmds.add(x.command);
+      if (!cmdFiles.has(file)) fails.push({ where: at('pack.json', extraLine), what: `extraCommands names ${file}, which is not a command file of this pack` });
+      if (!commands.includes(x.command)) fails.push({ where: at('pack.json', extraLine), what: `extraCommands names ${x.command}, which is not in commands` });
+      if (x.reason.trim().length < MIN_EXTRA_REASON) fails.push({ where: at('pack.json', extraLine), what: `extraCommands entry for ${file} needs a reason saying why one command does not fit (${MIN_EXTRA_REASON} characters or more)` });
+    }
+    const unlisted = [...cmdFiles].filter((f) => !extraFiles.has(f)).sort();
+    if (!cmdFiles.size) fails.push({ where: at('pack.json', cmdLine), what: 'no command file: a pack ships exactly one command, command/<name>.md' });
+    else if (unlisted.length > 1) fails.push({ where: at('pack.json', cmdLine), what: `${unlisted.length} command files without an extraCommands entry (${unlisted.join(', ')}); a pack ships exactly one command` });
+    else if (!unlisted.length) fails.push({ where: at('pack.json', extraLine), what: 'every command file is listed in extraCommands; leave the main command out of it' });
+    for (const f of [...cmdFiles].sort()) {
+      if (f.startsWith('command/') && f.slice('command/'.length).includes('/') && !extraFiles.has(f)) fails.push({ where: at('pack.json', cmdLine), what: `${f} sits in a subfolder, which Claude Code turns into a command named folder, colon, file; put the one command at command/<name>.md` });
+    }
+    for (const c of commands) if (c.includes(':') && !extraCmds.has(c)) fails.push({ where: at('pack.json', cmdLine), what: `colon subcommand ${c}: ship one command that takes an argument, or list it in extraCommands with a reason` });
+    if (isStrArr(pj.commands) && cmdFiles.size && commands.length !== cmdFiles.size) fails.push({ where: at('pack.json', cmdLine), what: `commands names ${commands.length}, but the pack has ${cmdFiles.size} command files` });
+    const summary = extras.length
+      ? `${cmdFiles.size} command files, ${extras.length} allowed by extraCommands`
+      : `${cmdFiles.size} command file${cmdFiles.size === 1 ? ` (${[...cmdFiles][0]})` : 's'}, commands ${JSON.stringify(commands)}`;
+    report.check(fails.length ? 'FAIL' : 'ok', 'one-command', summary, fails);
+  }
+
   if (!installOk) {
     for (const name of ['install', 'selfcheck', 'require', 'dirname', 'd3-link']) report.check('SKIP', name, 'install is malformed (see pack-json)');
     return;
@@ -1100,10 +1156,32 @@ const BUILDERS = {
   'zero-packs'(tmp) {
     removeDir(path.join(tmp, 'demo'));
   },
+  'colon-command'(tmp) {
+    // Built at test time: a committed colon command would fail the repo's own d2-command check.
+    const f = path.join(tmp, 'demo', 'pack.json');
+    const before = fs.readFileSync(f, 'utf8');
+    const after = before.replace('"commands": ["/demo"]', `"commands": ["${['/demo', 'run'].join(':')}"]`);
+    if (after === before) throw new Error('control pack.json has no "commands": ["/demo"] line to rewrite');
+    fs.writeFileSync(f, after);
+  },
+  'nested-command'(tmp) {
+    // The one command file moves into a subfolder of command/ (installed as .claude/commands/demo/run.md).
+    const d = path.join(tmp, 'demo');
+    fs.mkdirSync(path.join(d, 'command', 'demo'), { recursive: true });
+    fs.rmSync(path.join(d, 'command', 'demo.md'));
+    fs.writeFileSync(path.join(d, 'command', 'demo', 'run.md'), '# run\n\nThe one command, in a subfolder.\n');
+    const f = path.join(d, 'pack.json');
+    const before = fs.readFileSync(f, 'utf8');
+    const after = before.split('"command/demo.md"').join('"command/demo/run.md"').replace('".claude/commands/demo.md"', '".claude/commands/demo/run.md"');
+    if (after === before) throw new Error('control pack.json does not name command/demo.md');
+    fs.writeFileSync(f, after);
+    const readme = path.join(d, 'README.md');
+    fs.writeFileSync(readme, fs.readFileSync(readme, 'utf8').split('command/demo.md').join('command/demo/run.md'));
+  },
 };
 
 // Every check class the self-test must prove RED at least once.
-const REQUIRED_RED = ['shape', 'hash', 'personal', 'd2-command', 'd3-link', 'require', 'dirname', 'selfcheck', 'install', 'files-list', 'install-from', 'git-log', 'strict', 'cross-check', 'fixture-manifest', 'packs', 'pack-json'];
+const REQUIRED_RED = ['shape', 'hash', 'personal', 'd2-command', 'd3-link', 'require', 'dirname', 'selfcheck', 'install', 'files-list', 'install-from', 'one-command', 'git-log', 'strict', 'cross-check', 'fixture-manifest', 'packs', 'pack-json'];
 
 function parseFailureLines(output) {
   const out = [];
