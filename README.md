@@ -38,7 +38,8 @@ In more detail, it:
 - checks slash-command closure (every namespaced slash command mentioned anywhere in the repo must be declared in some pack's `pack.json`) and link closure (every relative Markdown link in an installed pack resolves to a file inside it);
 - checks that every `require` is a Node built-in or a file inside the installed pack, and that no script path climbs out of the pack;
 - runs the pack's own self-check inside the temporary project;
-- checks that the `files` list in `pack.json` matches the files on disk.
+- checks that the `files` list in `pack.json` matches the files on disk;
+- checks that each pack ships one command: one command file, and no subcommand written with a colon. A pack that genuinely needs a second one lists it in `pack.json` under `extraCommands`, as `{ "command", "file", "reason" }`, with a reason of 20 characters or more.
 
 Two optional local lists can be added through environment variables, `STANDALONE_PERSONAL_TOKENS` and `STANDALONE_INSTANCE_TOKENS`, each holding the path to a local file. Without them the check says so and runs everything else. With `STANDALONE_REQUIRE_LOCAL=1`, both lists become mandatory and a missing one fails the run.
 
