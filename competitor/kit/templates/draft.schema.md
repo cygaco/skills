@@ -5,7 +5,7 @@
 - `draft.json`, the research, renders to `<slug>.competitor.md` and `.html` (`report.js brief`);
 - `compare.json`, the side-by-side analysis, renders to `<slug>.compare.md` and `.html` (`report.js compare`).
 
-Times are UTC in ISO 8601, for example `2026-11-01T09:30:00Z`. Text fields are plain text: the report escapes everything, so Markdown, HTML and links typed into a field show up as literal text, never as formatting or links. The only links in a report point to source records that pass the URL check.
+Times are UTC in ISO 8601, for example `2026-11-01T09:30:00Z`. Text fields are plain text: the report escapes everything, so Markdown, HTML and links typed into a field show up as literal text, never as formatting or links. The only links in a report point to source records that pass the URL check. A URL can pass that check and still hold characters Markdown acts on, such as `|`, brackets or parentheses. So in the Markdown report every such character in a link's address is percent-encoded (`|` becomes `%7C`, `(` becomes `%28`, and so on; `%` itself is left as it is). The link still opens the same page, and it cannot split a table row or open a second link. The HTML report keeps the address as the URL check normalised it, escaped for the attribute.
 
 ## Before the drafts: the target, the folder and the URL check
 

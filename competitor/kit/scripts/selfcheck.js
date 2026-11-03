@@ -33,7 +33,13 @@
  * draft.json, compare.json, urls.txt or a report, and links and hard-linked
  * files under any other name in that folder); the list caps, the cites
  * cap, the nesting and value limits, all counted before parsing; and folder,
- * "." and link cites rendering as unverified.
+ * "." and link cites rendering as unverified. Also: link addresses in
+ * Markdown, where an address that passed the URL check but holds | [ ] ( ) or
+ * other Markdown is percent-encoded and stays one table cell (the brief and the
+ * comparison, an image form, an angle-bracket and backtick form, a plain
+ * ?a=1&b=2#x address that must still work); [GAP] marker words escaped; and a
+ * structural check over every Markdown report the run rendered: each table row,
+ * split at every unescaped "|", has as many cells as its header.
  */
 
 const fs = require("fs");
@@ -190,6 +196,90 @@ function mdLinks(md) {
   return { links: out, rest: md.replace(re, "]()") };
 }
 
+// The characters a Markdown link address must not carry raw, because Markdown
+// or a table could act on them. This is the rule written out again, apart from
+// the kit's own code, so the check does not trust the code it checks.
+const MD_ACTIVE = "|[]()<>`*_!\\\"'" + " ";
+
+/** The Markdown address the kit must emit for a checked href ("&amp;" left decoded, as mdLinks returns it). */
+function mdDest(href) {
+  const v6 = /^https?:\/\/\[[0-9A-Fa-f:.]+\]/.exec(href);
+  const head = v6 ? v6[0] : "";
+  const enc = (c) => (MD_ACTIVE.includes(c) ? `%${c.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}` : c);
+  return head + [...href.slice(head.length)].map(enc).join("");
+}
+
+const htmlAttr = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+/**
+ * The cells of one Markdown table row, split at every "|" not preceded by a
+ * backslash, the way a table is split before its links are read. The pipes
+ * that open and close the row do not make cells.
+ */
+function mdRowCells(line) {
+  const cells = [""];
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === "|" && line[i - 1] !== "\\") cells.push("");
+    else cells[cells.length - 1] += line[i];
+  }
+  if (line.startsWith("|")) cells.shift();
+  if (cells.length && line.endsWith("|") && line[line.length - 2] !== "\\") cells.pop();
+  return cells;
+}
+
+/** Every table in the Markdown (a run of lines starting with "|"), and every row whose cell count is not its header's. */
+function mdTableShape(md) {
+  const lines = md.split("\n");
+  let tables = 0;
+  let rows = 0;
+  const bad = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].startsWith("|")) continue;
+    const start = i;
+    while (i + 1 < lines.length && lines[i + 1].startsWith("|")) i++;
+    tables++;
+    const head = mdRowCells(lines[start]).length;
+    if (!/^\|(?:-{3,}\|)+$/.test(lines[start + 1] || "")) bad.push(`line ${start + 2}: no separator row under the header`);
+    for (let j = start + 1; j <= i; j++) {
+      rows++;
+      const n = mdRowCells(lines[j]).length;
+      if (n !== head) bad.push(`line ${j + 1}: ${n} cells, the header has ${head}: ${lines[j].slice(0, 200)}`);
+    }
+  }
+  return { tables, rows, bad };
+}
+
+/** The text after every "](" whose "]" is not escaped (an even run of backslashes before it), up to the end of the line. */
+function mdLinkTargets(md) {
+  const out = [];
+  for (let i = md.indexOf("]("); i >= 0; i = md.indexOf("](", i + 1)) {
+    let k = i - 1;
+    while (k >= 0 && md[k] === "\\") k--;
+    if ((i - 1 - k) % 2 === 0) out.push(md.slice(i + 2).split("\n")[0].slice(0, 300));
+  }
+  return out;
+}
+
+/** A link address that is inert: <http(s)://...> with nothing a table or Markdown can act on, then ")". */
+const INERT_TARGET = /^<https?:\/\/(?:\[[0-9A-Fa-f:.]+\])?[^\s|[\]()<>`*_!\\"']*>\)/;
+
+/** Table structure of one rendered Markdown file. */
+function assertTables(prefix, md, minTables) {
+  const shape = mdTableShape(md);
+  check(`${prefix} md tables: every row has as many cells as its header (split on unescaped "|")`, shape.bad.length === 0 && shape.tables >= (minTables || 1),
+    () => `${shape.tables} tables, ${shape.rows} rows; ${shape.bad.slice(0, 3).join(" / ")}`);
+}
+
+/** No live javascript link, no image, every link address inert, every table row whole. */
+function assertMdInert(prefix, md) {
+  const low = md.toLowerCase();
+  check(`${prefix} md has no "](javascript:" and no "![" anywhere`, md.length > 0 && !low.includes("](javascript:") && !low.includes("](<javascript:") && !md.includes("!["),
+    () => (md.match(/.{0,60}(\]\(<?javascript:|!\[).{0,60}/i) || [md ? "" : "(no Markdown rendered)"])[0]);
+  const bad = mdLinkTargets(md).filter((t) => !INERT_TARGET.test(t));
+  check(`${prefix} md: every link opens an http(s) address with nothing Markdown or a table can act on`, md.length > 0 && bad.length === 0, () => bad.slice(0, 3).join(" / "));
+  assertTables(prefix, md);
+}
+
 /** The hrefs a report may contain: source-record URLs that pass the URL check. */
 function allowedHrefs(draft) {
   const set = new Set();
@@ -208,7 +298,9 @@ function assertNeutral(prefix, md, html, allowed) {
   check(`${prefix} html has no script, iframe, img, svg or object tag`, !/<(script|iframe|img|svg|object|embed|form|base|meta http-equiv="refresh")/i.test(html));
   check(`${prefix} html carries the content security policy`, html.includes("Content-Security-Policy") && html.includes("default-src 'none'"));
   const { links, rest } = mdLinks(md);
-  check(`${prefix} md links are checked source records only`, links.length > 0 && links.every((h) => allowed.has(h)), () => links.filter((h) => !allowed.has(h)).join(" "));
+  const allowedMd = new Set([...allowed].map(mdDest));
+  check(`${prefix} md links are checked source records only`, links.length > 0 && links.every((h) => allowedMd.has(h)), () => links.filter((h) => !allowedMd.has(h)).join(" "));
+  assertTables(prefix, md);
   const bare = rest.replace(/\]\(\)/g, "");
   check(`${prefix} md has no other link syntax`, !/(^|[^\\])\]\(/m.test(bare) && !/(^|[^\\])\]\[/m.test(bare) && !/^ {0,3}\[[^\]\n]*\]:/m.test(bare));
   check(`${prefix} md has no raw HTML or angle autolink`, !rest.includes("<"));
@@ -700,6 +792,7 @@ function checkMdSchemes() {
   check("md.no scheme:// in draft text stays live, whatever precedes it (xhttp, xftp, Ahttps, _http, 1http, x://)", !liveScheme(md), () => (md.match(/.{0,30}[^\\]:\/\/.{0,30}/) || [""])[0]);
   check("md.the report holds no link at all when no source passed the URL check", !/\]\(/.test(md.replace(/\\\]\(/g, "")) && !/\bhref=/.test(read(repo, "competitor/x-co/x-co.competitor.html")));
   check("md.a www. inside a word is neutralised too", md.includes("xwww\\.evil") && !/(^|[^\\])www\./i.test(md.replace(/www\\\./gi, "")), () => (md.match(/.{0,20}www.{0,20}/i) || [""])[0]);
+  assertTables("md.brief with no sources", md);
 }
 
 function checkBriefBad() {
@@ -1016,6 +1109,7 @@ function checkCompare() {
   check("compare.against a brief with refused records logs them loudly and still renders", r2.code === 0 && r2.err.filter((l) => l.startsWith("REFUSED SOURCE RECORD")).length === 4 && r2.out.some((l) => l.startsWith("records refused: 4")), () => JSON.stringify(r2));
   const minMd = read(repo2, "competitor/hostile-co/hostile-co.compare.md");
   check("compare.empty sections show [GAP] markers", (minMd.match(/\[GAP — /g) || []).length === 8);
+  assertTables("compare.against the hostile brief", minMd);
 }
 
 /** Feature rows without a fetched source, and file cites on openings, risks and next steps. */
@@ -1434,6 +1528,202 @@ function checkDirCites() {
     () => `${JSON.stringify(r.out)} ${(md.match(/^.*(C1|Y1|Y2|R1)\b.*$/gm) || []).join(" / ")}`);
 }
 
+// ---------------------------------------------------------------- link addresses in Markdown tables
+
+// Addresses that pass the URL check and still carry Markdown: "|" ends a table
+// cell before links are read, so a raw address would break out of its cell.
+const HOSTILE_HREFS = {
+  attack: "https://example.com/|[x](javascript:alert(1))|",
+  image: "https://example.com/|![x](https://attacker.example/p.png)|",
+  angle: "https://example.com/a|<b>|`c`|",
+};
+const HREF_FAILED = "https://example.com/failed|[y](javascript:alert(2))|";
+const HREF_QUERY_TICK = "https://example.com/q?x=|`y`|";
+const HREF_PLAIN = "https://www.example.com/search?a=1&b=2#x";
+
+/** draft-full.json plus an ok record at `url` (S9) that the target, feature F5 and quote Q4 cite, and a failed record (S10). */
+function hrefDraft(url) {
+  const draft = fixture("draft-full.json");
+  draft.target = { ...draft.target, url };
+  draft.source_records.push(
+    { url, source_class: "review", status: "ok", length: 1200, retrieved_at: "2026-11-01T09:11:00Z" },
+    { url: HREF_FAILED, source_class: "review", status: "failed", failure_reason: "HTTP 500", retrieved_at: "2026-11-01T09:12:00Z" },
+  );
+  draft.features.push({ name: "Shared links", description: "Cited to the address under test.", complexity: "S", coreness: 2, evidence_url: url });
+  draft.voc.push({ quote: "Links stay in their cell.", sentiment: "positive", source_url: url, retrieved: "2026-11-01" });
+  return draft;
+}
+
+/** A comparison whose feature C1, an opening and the pricing cite `url`. */
+function hrefCompare(url) {
+  return {
+    generated_at: "2026-11-03T10:00:00Z",
+    features: [{ name: "Shared links", them: { status: "yes", evidence_url: url }, you: { status: "no", cite: "you said" } }],
+    openings: [{ opening: "Links that stay in their cell.", cites: [url] }],
+    risks: [{ risk: "Built on their quote.", cites: ["Q4"] }],
+    pricing: { them: { summary: "Per seat.", cites: [url] }, you: { summary: "Free.", cite: "you said" } },
+  };
+}
+
+/** Renders the brief and then the comparison in a fresh repository. */
+function hrefRender(url) {
+  const repo = makeRepo();
+  putJson(repo, "competitor/acme-notes/draft.json", hrefDraft(url));
+  putJson(repo, "competitor/acme-notes/compare.json", hrefCompare(url));
+  const rb = cli(["brief", "--draft", "competitor/acme-notes/draft.json"], { cwd: repo });
+  const rc = cli(["compare", "--draft", "competitor/acme-notes/compare.json", "--brief", "competitor/acme-notes/draft.json"], { cwd: repo });
+  const get = (r, rel) => (r.code === 0 && exists(repo, rel) ? read(repo, rel) : "");
+  return {
+    rb,
+    rc,
+    briefMd: get(rb, "competitor/acme-notes/acme-notes.competitor.md"),
+    briefHtml: get(rb, "competitor/acme-notes/acme-notes.competitor.html"),
+    cmpMd: get(rc, "competitor/acme-notes/acme-notes.compare.md"),
+    cmpHtml: get(rc, "competitor/acme-notes/acme-notes.compare.html"),
+  };
+}
+
+/** The trimmed cells of the table row that starts "| <id> |", or []. */
+function rowCells(md, id) {
+  const line = md.split("\n").find((l) => l.startsWith(`| ${id} |`));
+  return line ? mdRowCells(line).map((c) => c.trim()) : [];
+}
+
+/** The address inside a "[S1](<...>)" link, or "" when the text is not one. */
+const destOf = (link, label) => (link.startsWith(`[${label}](<`) && link.endsWith(">)") ? link.slice(label.length + 4, -2).replace(/&amp;/g, "&") : "");
+
+/** new URL(s), or null when it does not parse. */
+function parsedUrl(s) {
+  try {
+    return new URL(s);
+  } catch (e) {
+    return null;
+  }
+}
+
+function checkMdHrefs() {
+  for (const [tag, raw] of Object.entries(HOSTILE_HREFS)) {
+    const href = guard.checkUrl(raw).href;
+    const allowed = allowedHrefs(hrefDraft(raw));
+    const link = `[S9](<${mdDest(href)}>)`;
+    const out = hrefRender(raw);
+    const f5 = rowCells(out.briefMd, "F5");
+    const q4 = rowCells(out.briefMd, "Q4");
+    check(`mdhref.${tag} brief exits 0; feature F5 and quote Q4 cite S9 as one whole link cell`, out.rb.code === 0 && f5.length === 6 && f5[5] === link && q4.length === 5 && q4[3] === link,
+      () => JSON.stringify({ code: out.rb.code, f5, q4 }));
+    assertMdInert(`mdhref.${tag} brief`, out.briefMd);
+    check(`mdhref.${tag} brief html keeps the checked address, attribute-escaped, and links checked records only`,
+      out.briefHtml.includes(`href="${htmlAttr(href)}"`) && htmlHrefs(out.briefHtml).every((h) => allowed.has(h)) && !/href="\s*javascript:/i.test(out.briefHtml),
+      () => htmlHrefs(out.briefHtml).filter((h) => !allowed.has(h)).join(" "));
+    const c1 = rowCells(out.cmpMd, "C1");
+    check(`mdhref.${tag} compare exits 0; feature C1's evidence is one whole link cell`, out.rc.code === 0 && c1.length === 6 && c1[3] === link, () => JSON.stringify({ code: out.rc.code, c1 }));
+    assertMdInert(`mdhref.${tag} compare`, out.cmpMd);
+    check(`mdhref.${tag} compare html keeps the checked address, attribute-escaped, and links checked records only`,
+      out.cmpHtml.includes(`href="${htmlAttr(href)}"`) && htmlHrefs(out.cmpHtml).every((h) => allowed.has(h)) && !/href="\s*javascript:/i.test(out.cmpHtml),
+      () => htmlHrefs(out.cmpHtml).filter((h) => !allowed.has(h)).join(" "));
+  }
+
+  // A backtick the URL parser leaves in the query: such an address is shown as text, never as a link.
+  {
+    const href = guard.checkUrl(HREF_QUERY_TICK).href;
+    const out = hrefRender(HREF_QUERY_TICK);
+    const f5 = rowCells(out.briefMd, "F5");
+    const c1 = rowCells(out.cmpMd, "C1");
+    check("mdhref.tick-in-query an address with a backtick left in its query is shown as text, never a link (brief, compare, html)",
+      out.rb.code === 0 && out.rc.code === 0 && f5[5] === "S9" && c1[3] === "S9" && !out.briefMd.includes("](<https://example.com/q") && !out.cmpMd.includes("](<https://example.com/q") &&
+        !htmlHrefs(out.briefHtml).includes(href) && !htmlHrefs(out.cmpHtml).includes(href),
+      () => JSON.stringify({ f5, c1 }));
+    assertMdInert("mdhref.tick-in-query brief", out.briefMd);
+    assertMdInert("mdhref.tick-in-query compare", out.cmpMd);
+  }
+
+  // A plain address with a query and a fragment stays a working link to the same page.
+  {
+    const out = hrefRender(HREF_PLAIN);
+    const want = "[S9](<https://www.example.com/search?a=1&b=2#x>)";
+    const f5 = rowCells(out.briefMd, "F5");
+    const c1 = rowCells(out.cmpMd, "C1");
+    const back = parsedUrl(destOf(f5[5] || "", "S9"));
+    const attr = 'href="https://www.example.com/search?a=1&amp;b=2#x"';
+    check("mdhref.plain an address with ?a=1&b=2#x still renders as a working link to the same target (md brief, md compare, html)",
+      out.rb.code === 0 && out.rc.code === 0 && f5[5] === want && c1[3] === want && back !== null && back.href === HREF_PLAIN && out.briefHtml.includes(attr) && out.cmpHtml.includes(attr),
+      () => JSON.stringify({ f5: f5[5], c1: c1[3] }));
+    assertMdInert("mdhref.plain brief", out.briefMd);
+  }
+
+  // The link renderer on its own.
+  const attackLink = text.mdLink("S1", HOSTILE_HREFS.attack);
+  check("mdhref.unit text.mdLink percent-encodes the attack address", attackLink === "[S1](<https://example.com/%7C%5Bx%5D%28javascript:alert%281%29%29%7C>)", () => attackLink);
+  const pathLink = text.mdLink("S1", "https://example.com/a|b[c]d(e)f*g_h!i'j");
+  check("mdhref.unit text.mdLink percent-encodes | [ ] ( ) * _ ! ' in a path", pathLink === "[S1](<https://example.com/a%7Cb%5Bc%5Dd%28e%29f%2Ag%5Fh%21i%27j>)", () => pathLink);
+  // A kit without mdHref fails this check instead of throwing.
+  const mdHrefOf = (h) => (typeof text.mdHref === "function" ? text.mdHref(h) : h);
+  const refusedChars = mdHrefOf("https://example.com/<>`\\\" x");
+  check("mdhref.unit text.mdHref also encodes < > ` \\ \" and space (refused before a link is made, encoded all the same)", refusedChars === "https://example.com/%3C%3E%60%5C%22%20x", () => refusedChars);
+  const v6 = text.mdLink("S1", "https://[2001:4860::8888]:8443/a|b");
+  const v6url = parsedUrl(destOf(v6, "S1"));
+  check("mdhref.unit an IPv6 host keeps its brackets and the address still parses", v6 === "[S1](<https://[2001:4860::8888]:8443/a%7Cb>)" && v6url !== null && v6url.hostname === "[2001:4860::8888]", () => v6);
+  const host = text.mdLink("S1", "https://a_b.example.com/x(y)");
+  const hostUrl = parsedUrl(destOf(host, "S1"));
+  check("mdhref.unit characters in a host name are encoded too, and the URL parser reads back the same host", host === "[S1](<https://a%5Fb.example.com/x%28y%29>)" && hostUrl !== null && hostUrl.hostname === "a_b.example.com", () => host);
+  const pct = text.mdLink("S1", "https://example.com/a%7Cb%25");
+  check("mdhref.unit text.mdLink leaves % alone", pct === "[S1](<https://example.com/a%7Cb%25>)", () => pct);
+  {
+    const a = parsedUrl(destOf(attackLink, "S1"));
+    const b = new URL(HOSTILE_HREFS.attack);
+    check("mdhref.unit the encoded attack address decodes to the same host, path, query and fragment",
+      a !== null && a.host === b.host && decodeURIComponent(a.pathname) === decodeURIComponent(b.pathname) && a.search === b.search && a.hash === b.hash, () => attackLink);
+  }
+
+  // A [GAP] marker reaches Markdown escaped like any other text.
+  {
+    const repo = makeRepo();
+    const draft = fixture("draft-full.json");
+    draft.features = [];
+    putJson(repo, "draft.json", draft);
+    const marker = "[GAP — features — a *b* | c_d `e` !x]";
+    const dir = templateCopy((d) => {
+      const f = path.join(d, "section-defaults.json");
+      const doc = JSON.parse(fs.readFileSync(f, "utf8"));
+      doc.brief.features = marker;
+      fs.writeFileSync(f, JSON.stringify(doc));
+    });
+    const r = cli(["brief", "--draft", "draft.json"], { cwd: repo, templatesDir: dir });
+    const md = r.code === 0 ? read(repo, "competitor/acme-notes/acme-notes.competitor.md") : "";
+    const html = r.code === 0 ? read(repo, "competitor/acme-notes/acme-notes.competitor.html") : "";
+    check("mdhref.sink a [GAP] marker keeps its shape and its words are escaped in md like any text (html escaped as before)",
+      md.includes("[GAP — features — a \\*b\\* \\| c\\_d \\`e\\` !x]") && html.includes('<span class="gap-marker">[GAP — features — a *b* | c_d `e` !x]</span>') && r.out.includes("gaps: 1 [GAP] marker"),
+      () => `${JSON.stringify(r)} ${(md.match(/^.*\[GAP.*$/m) || [""])[0]}`);
+  }
+}
+
+/** Every Markdown report this run rendered, anywhere under the temp folder (links and junctions are not followed). */
+function renderedReports(dir, out) {
+  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, ent.name);
+    if (ent.isSymbolicLink()) continue;
+    if (ent.isDirectory()) renderedReports(p, out);
+    else if (ent.isFile() && /\.(competitor|compare)\.md$/.test(ent.name)) out.push(p);
+  }
+  return out;
+}
+
+/** The structural check over every Markdown file the self-check rendered, hostile and full fixtures included. */
+function checkAllTables() {
+  const files = renderedReports(TMP, []);
+  let tables = 0;
+  let withTables = 0;
+  const bad = [];
+  for (const f of files) {
+    const shape = mdTableShape(fs.readFileSync(f, "utf8"));
+    tables += shape.tables;
+    if (shape.tables) withTables++;
+    for (const b of shape.bad) bad.push(`${path.relative(TMP, f)} ${b}`);
+  }
+  check(`mdtables.every Markdown report this selfcheck rendered keeps every table row whole (${files.length} files, ${withTables} with tables, ${tables} tables)`,
+    withTables >= 20 && bad.length === 0, () => `${bad.length} bad rows: ${bad.slice(0, 3).join(" / ")}`);
+}
+
 // ---------------------------------------------------------------- run
 
 function main() {
@@ -1460,6 +1750,8 @@ function main() {
     section("run files", checkRunFiles);
     section("counts", checkCounts);
     section("folder cites", checkDirCites);
+    section("md link addresses", checkMdHrefs);
+    section("md tables", checkAllTables);
   } finally {
     try {
       fs.rmSync(TMP, { recursive: true, force: true, maxRetries: 3 });

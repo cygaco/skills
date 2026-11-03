@@ -4,6 +4,11 @@
  * HTML. Neither renderer parses the other's output, so nothing is escaped twice
  * and no draft text is ever read as markup.
  *
+ * Markdown: every node goes through lib/text.js (mdText, mdLink, mdCode,
+ * mdGap); nothing is joined into a line raw. A table row has exactly one cell
+ * per header, and no cell can hold an unescaped "|" (link addresses are
+ * percent-encoded by mdHref, text is escaped by mdText).
+ *
  * Inline nodes: a plain string (draft or engine text), or
  *   { t: "link", label, href }     href already passed the URL check
  *   { t: "gap", text }             a [GAP ...] marker
@@ -18,7 +23,7 @@
  *   { t: "table", head: [text], rows: [[inl]] }
  */
 
-const { mdText, htmlText, htmlEscape, mdLink, htmlLink, mdCode, GAP_DASH, UNVERIFIED } = require("./text");
+const { mdText, htmlText, htmlEscape, mdLink, htmlLink, mdCode, mdGap, GAP_DASH, UNVERIFIED } = require("./text");
 
 const asList = (inl) => (Array.isArray(inl) ? inl : [inl]);
 
@@ -38,7 +43,7 @@ function mdNode(n, first) {
     case "link":
       return mdLink(n.label, n.href);
     case "gap":
-      return n.text;
+      return mdGap(n.text);
     case "label":
       return `*${mdText(n.text)}*`;
     case "strong":

@@ -236,6 +236,13 @@ function writeReports(root, slug, names, contents) {
   return writeOutputs(prep, names, contents.map(finish)).map((f) => rel(root, f));
 }
 
+/**
+ * The plain template values, escaped for one output: mdText for Markdown,
+ * htmlText for HTML. They are already checked (a slug, an ISO time, a date, a
+ * count), and they still go through the same neutraliser as every other value.
+ */
+const escapeVars = (vars, esc) => Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, esc(v)]));
+
 function metaInline(a, counts) {
   const { target } = a;
   const site = target.guard && target.guard.ok ? target.guard.href : target.urlText ? shownUrl(target.urlText) : "";
@@ -265,10 +272,10 @@ function cmdBrief(flags, io) {
   const title = `${a.target.name} - competitor brief`;
   const meta = metaInline(a, model.counts);
   const common = { slug, generated_at: a.generatedAt.raw, brief_date: a.generatedAt.date, gap_count: String(model.counts.gaps) };
-  const md = renderTemplate(kit.md, { ...common, title: mdText(title), meta: mdInline(meta), sections: renderSectionsMd(model.sections) }, kit.mdName);
+  const md = renderTemplate(kit.md, { ...escapeVars(common, mdText), title: mdText(title), meta: mdInline(meta), sections: renderSectionsMd(model.sections) }, kit.mdName);
   const html = renderTemplate(
     kit.html,
-    { ...common, title: htmlText(title), meta: htmlInline(meta), sections: renderSectionsHtml(model.sections) },
+    { ...escapeVars(common, htmlText), title: htmlText(title), meta: htmlInline(meta), sections: renderSectionsHtml(model.sections) },
     kit.htmlName,
   );
   const written = writeReports(root, slug, [`${slug}.competitor.md`, `${slug}.competitor.html`], [md, html]);
@@ -297,12 +304,12 @@ function cmdCompare(flags, io) {
   const common = { slug, generated_at: model.generatedAt.raw, brief_date: a.generatedAt.date, gap_count: String(model.counts.gaps) };
   const md = renderTemplate(
     kit.md,
-    { ...common, title: mdText(title), brief_line: mdText(model.briefLine), sections: renderSectionsMd(model.sections) },
+    { ...escapeVars(common, mdText), title: mdText(title), brief_line: mdText(model.briefLine), sections: renderSectionsMd(model.sections) },
     kit.mdName,
   );
   const html = renderTemplate(
     kit.html,
-    { ...common, title: htmlText(title), brief_line: htmlText(model.briefLine), sections: renderSectionsHtml(model.sections) },
+    { ...escapeVars(common, htmlText), title: htmlText(title), brief_line: htmlText(model.briefLine), sections: renderSectionsHtml(model.sections) },
     kit.htmlName,
   );
   const written = writeReports(root, slug, [`${slug}.compare.md`, `${slug}.compare.html`], [md, html]);

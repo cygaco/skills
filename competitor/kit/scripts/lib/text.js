@@ -12,6 +12,13 @@
  * draft text never turns into a link. The only links in a report are made by
  * mdLink / the HTML link renderer, from URLs that passed the URL check.
  *
+ * Link addresses in Markdown: a table splits its rows at every unescaped "|"
+ * before links are read, so an address is not safe just because it passed the
+ * URL check. mdHref percent-encodes every character a table or Markdown could
+ * act on (| [ ] ( ) < > ` * _ ! \ " ' and space; "%" is left alone), so the
+ * address names the same page and cannot split a row or open a second link.
+ * The HTML report keeps the plain address, attribute-escaped by htmlEscape.
+ *
  * Size: a string is cut to MAX_FIELD characters before any per-character work,
  * and shown text is capped at MAX_TEXT characters.
  */
@@ -111,10 +118,33 @@ function safeHref(href) {
   return typeof href === "string" && /^https?:\/\/[^\s<>"`\\]+$/.test(href) && !hasUnsafeChar(href);
 }
 
+// The characters percent-encoded in a Markdown link address. "|" splits a
+// table row; the others can start or end a link, an image, emphasis, code, an
+// escape, a link title or raw HTML in a renderer that reads the address loosely.
+const MD_HREF_ENCODE = new Set(["|", "[", "]", "(", ")", "<", ">", "`", "*", "_", "!", "\\", '"', "'", " "]);
+
+/**
+ * An href that passed the URL check, as a Markdown link address: every
+ * character in MD_HREF_ENCODE becomes %XX, everywhere in the URL. The URL
+ * parser decodes %XX in a host name, so the host is unchanged; the brackets
+ * around an IPv6 host are the one exception and stay as they are (the address
+ * inside them is only hex digits, colons and dots). "&" before an entity name
+ * becomes "&amp;", so the renderer does not decode it.
+ */
+function mdHref(href) {
+  const v6 = /^https?:\/\/\[[0-9A-Fa-f:.]+\]/.exec(href);
+  const head = v6 ? v6[0] : "";
+  let out = head;
+  for (const ch of href.slice(head.length)) {
+    out += MD_HREF_ENCODE.has(ch) ? `%${ch.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}` : ch;
+  }
+  return out.replace(/&(?=#?[A-Za-z0-9]+;)/g, "&amp;");
+}
+
 /** A Markdown link. The label is engine text; the href must already have passed the URL check. */
 function mdLink(label, href) {
   if (!safeHref(href)) return mdText(label);
-  return `[${mdText(label)}](<${href.replace(/&(?=#?[A-Za-z0-9]+;)/g, "&amp;")}>)`;
+  return `[${mdText(label)}](<${mdHref(href)}>)`;
 }
 
 function htmlLink(label, href) {
@@ -131,6 +161,16 @@ function mdCode(value) {
 
 function gapMarker(area, reason) {
   return `[GAP ${GAP_DASH} ${area} ${GAP_DASH} ${reason}]`;
+}
+
+/**
+ * A [GAP ...] marker in Markdown. The marker's own brackets stay; the words
+ * inside are escaped like any text, so a marker never formats, links or splits
+ * a table row. Anything not in the marker shape is shown as plain escaped text.
+ */
+function mdGap(s) {
+  const m = typeof s === "string" ? /^\[GAP ([^\]\n\r]*)\]$/.exec(s) : null;
+  return m ? `[GAP ${mdText(m[1])}]` : mdText(s);
 }
 
 const GAP_RE = /\[GAP\s/g;
@@ -165,6 +205,8 @@ module.exports = {
   htmlText,
   mdText,
   mdLink,
+  mdHref,
+  mdGap,
   htmlLink,
   mdCode,
   safeHref,
