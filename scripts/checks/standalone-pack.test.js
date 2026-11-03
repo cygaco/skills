@@ -19,7 +19,9 @@
  *   (i)  Every repo file (`git ls-files -co --exclude-standard` at the root) and the git
  *        log (`git log --all`: author, committer and message): the shape, hash and personal
  *        tiers. Every repo file: slash-command closure (d2-command) and the fixture
- *        manifest. One exemption, by exact folder, printed on every run:
+ *        manifest. The root packs.json (a JSON array of pack folder names) must list every
+ *        pack folder (pack-allowlist), so a pack cannot land without a deliberate edit of
+ *        that list. One exemption, by exact folder, printed on every run:
  *        scripts/checks/fixtures/ skips the shape and hash tiers only.
  *   (ii) Each pack (a top-level folder holding pack.json), installed into an empty temp
  *        project through pack.json.install: install, files-list, install-from, selfcheck,
@@ -60,6 +62,7 @@ const KEEP_TMP = process.env.KEEP_TMP === '1';
 const IS_WIN = process.platform === 'win32';
 const PRINT_CAP = 40;
 const MIN_EXTRA_REASON = 20;
+const PACK_LIST = 'packs.json';
 const SELFCHECK_TIMEOUT_MS = 10 * 60 * 1000;
 const BUILTINS = new Set(builtinModules);
 const USAGE = 'usage: node scripts/checks/standalone-pack.test.js [--root <dir>] [--self-test]';
@@ -1114,6 +1117,34 @@ function runEnforcer(rootArg) {
     } else {
       report.check('ok', 'packs', `${packs.length} found: ${packs.map((p) => p.dirName).join(', ')}`);
     }
+    // The root packs.json lists the packs this repo ships. A pack folder it does not list
+    // fails, so an unrequested pack cannot land silently: adding a pack means adding its name
+    // to that list on purpose. A listed pack that is absent is fine (a branch may carry fewer).
+    {
+      const fails = [];
+      let listed = null;
+      const listFile = path.join(root, PACK_LIST);
+      if (!isFile(listFile)) {
+        fails.push({ where: `${PACK_LIST}:1`, what: `${PACK_LIST} is missing: the repo root must list its packs, for example ["lastmile"]` });
+      } else {
+        try {
+          const v = JSON.parse(fs.readFileSync(listFile, 'utf8').replace(/^﻿/, ''));
+          if (Array.isArray(v) && v.length && v.every((x) => typeof x === 'string' && x.trim())) listed = new Set(v);
+          else fails.push({ where: `${PACK_LIST}:1`, what: `${PACK_LIST} must be a non-empty JSON array of pack folder names` });
+        } catch (e) {
+          fails.push({ where: `${PACK_LIST}:1`, what: `${PACK_LIST} is not valid JSON` });
+        }
+      }
+      if (listed) {
+        for (const p of packs) if (!listed.has(p.dirName)) fails.push({ where: `${p.dirName}/pack.json:1`, what: `pack folder ${p.dirName}/ is not listed in ${PACK_LIST}; adding a pack means adding its name to that list on purpose` });
+      }
+      const detail = !listed
+        ? `${PACK_LIST} unusable`
+        : fails.length
+          ? `${fails.length} pack folder${fails.length === 1 ? '' : 's'} not listed in ${PACK_LIST}`
+          : `${packs.length} pack folder${packs.length === 1 ? '' : 's'}, all listed in ${PACK_LIST} (${[...listed].sort().join(', ')})`;
+      report.check(fails.length ? 'FAIL' : 'ok', 'pack-allowlist', detail, fails);
+    }
     for (const p of packs) checkPack(p, report, ctx);
   } finally {
     if (KEEP_TMP) {
@@ -1164,6 +1195,9 @@ const BUILDERS = {
     if (after === before) throw new Error('control pack.json has no "commands": ["/demo"] line to rewrite');
     fs.writeFileSync(f, after);
   },
+  'packs-list-missing'(tmp) {
+    fs.rmSync(path.join(tmp, PACK_LIST));
+  },
   'nested-command'(tmp) {
     // The one command file moves into a subfolder of command/ (installed as .claude/commands/demo/run.md).
     const d = path.join(tmp, 'demo');
@@ -1181,7 +1215,7 @@ const BUILDERS = {
 };
 
 // Every check class the self-test must prove RED at least once.
-const REQUIRED_RED = ['shape', 'hash', 'personal', 'd2-command', 'd3-link', 'require', 'dirname', 'selfcheck', 'install', 'files-list', 'install-from', 'one-command', 'git-log', 'strict', 'cross-check', 'fixture-manifest', 'packs', 'pack-json'];
+const REQUIRED_RED = ['shape', 'hash', 'personal', 'd2-command', 'd3-link', 'require', 'dirname', 'selfcheck', 'install', 'files-list', 'install-from', 'one-command', 'git-log', 'strict', 'cross-check', 'fixture-manifest', 'packs', 'pack-allowlist', 'pack-json'];
 
 function parseFailureLines(output) {
   const out = [];

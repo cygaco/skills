@@ -6,6 +6,7 @@
       "case": "control",
       "files": [
         "control/README.md",
+        "control/packs.json",
         "control/demo/README.md",
         "control/demo/pack.json",
         "control/demo/command/demo.md",
@@ -231,6 +232,17 @@
       "files": [],
       "build": "nested-command",
       "expect": { "exit": 1, "hits": [{ "at": "demo/pack.json:5", "check": "one-command", "what": "sits in a subfolder" }] }
+    },
+    {
+      "case": "unlisted-pack",
+      "files": ["unlisted-pack/packs.json"],
+      "expect": { "exit": 1, "hits": [{ "at": "demo/pack.json:1", "check": "pack-allowlist", "what": "pack folder demo/ is not listed in packs.json" }] }
+    },
+    {
+      "case": "packs-list-missing",
+      "files": [],
+      "build": "packs-list-missing",
+      "expect": { "exit": 1, "hits": [{ "at": "packs.json:1", "check": "pack-allowlist", "what": "packs.json is missing" }] }
     },
     {
       "case": "extra-commands-ok",
