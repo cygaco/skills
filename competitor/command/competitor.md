@@ -41,7 +41,7 @@ If `.claude/competitor/scripts/report.js` or `.claude/competitor/templates/` doe
    node .claude/competitor/scripts/report.js check --target '<target>'
    ```
 
-   Put the user's target inside single quotes, exactly as typed. If it contains a single quote, ask the user for the name without it. It prints the slug, the normalised URL for a URL target, and `dir: competitor/<slug>/`, the folder it has prepared for this run. If it refuses (exit 2), show the reason and stop. Write this run's files (`draft.json`, `compare.json`, URL lists) only into that prepared folder.
+   Put the user's target inside single quotes, exactly as typed. If it contains a single quote, ask the user for the name without it. It prints the slug, the normalised URL for a URL target, and `dir: competitor/<slug>/`, the folder it has prepared for this run. If it refuses (exit 2), show the reason and stop. If the refusal names a file in that folder, tell the user to delete it themselves; never delete or move it yourself. Write this run's files (`draft.json`, `compare.json`, URL lists) only into that prepared folder.
 3. If `./competitor/<slug>/draft.json` exists and its `generated_at` is less than 7 days old, ask one question: "There is a brief from <date>. Reuse it or refresh it?" On reuse, skip to Step 4 (or to Step 5 in `compare` mode).
 
 ## Step 1 — Identify the product
@@ -58,7 +58,7 @@ Check every URL before you fetch it, including links you found on fetched pages.
 node .claude/competitor/scripts/report.js check-url --file ./competitor/<slug>/urls.txt
 ```
 
-It prints one line per URL, `ok <url>` or `refused <url>: <reason>`, and exits non-zero if any was refused. Record a refused URL with status `refused` and the reason, and never fetch it.
+It prints one line per URL, `ok <url>` or `refused <url>: <reason>`, and exits non-zero if any was refused. It checks at most 200 URLs per file; a URL past the 200th prints `refused <url>: not checked; ...`. Those were not judged: overwrite `urls.txt` with them and run it again. Record any other refused URL with status `refused` and the reason, and never fetch it.
 
 - **The product site:** the home page, then up to 8 pages it links to on the same site, one level deep. Follow same-site links only. Prefer pricing (which may be a section of the home page), features or product, docs, changelog, about, security or trust, and customers.
 - **Reviews:** search for independent reviews (review sites, app-store listings if there is a mobile app, community discussions). A review must come from a site independent of the product; mirrors or proxies of the product's own pages are not reviews (record them as `product`). From the search results, check and fetch until `--max-review-sources` reviews were fetched successfully, trying at most twice that many. Some large review sites block the fetch tool; record those as failed.
