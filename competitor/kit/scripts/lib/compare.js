@@ -4,16 +4,23 @@
  * comparison's sections.
  *
  * Their side cites pages fetched for the brief (ok source records that pass
- * the URL check), or the brief's row ids (F2, G1, ...). Your side cites a
- * repo-relative file path that exists inside the repository, or the literal
- * "you said". A path that is absolute, has a drive letter, climbs with "..",
- * names a .env file or does not exist renders as "unverified".
+ * the URL check), or the brief's row ids (F2, G1, ...). A feature row's
+ * competitor status is shown only with a valid evidence_url: without one the
+ * Them column reads "— (no source)", the user's side is kept, and the drop is
+ * listed under Dropped rows and counted.
+ *
+ * Your side cites a repo-relative file path that exists inside the repository,
+ * or the literal "you said". A path that is absolute, has a drive letter,
+ * climbs with "..", names a .env file or does not exist renders as
+ * "unverified". Openings, risks and next steps may cite such paths too (a risk
+ * grounded in your own code), with the same checks: a valid one renders as a
+ * verified file cite, never as "inferred, no source".
  */
 
-const { cleanText, printable, shownUrl, INFERRED } = require("./text");
+const { cleanText, printable, shownUrl, INFERRED, GAP_DASH } = require("./text");
 const { countGaps } = require("./blocks");
 const { verifyCite } = require("./confine");
-const { DraftError, parseGeneratedAt, listField, citeList, resolveUrl, ROW_ID_RE } = require("./draft");
+const { DraftError, parseGeneratedAt, listField, citeList, resolveUrl, describeValue, ROW_ID_RE } = require("./draft");
 const { recordTables, logTables, sourcesOrLabel, sourceCell } = require("./brief");
 
 const COMPARE_IDS = ["features", "jobs_overlap", "openings", "pricing", "positioning", "risks", "next_steps", "your_side", "unanswered", "sources"];
@@ -21,12 +28,25 @@ const COMPARE_GAP_IDS = COMPARE_IDS.filter((id) => id !== "unanswered" && id !==
 const STATUS = ["yes", "no", "partial"];
 const OVERLAP = ["full", "partial", "none"];
 const DAY_MS = 24 * 60 * 60 * 1000;
+const NO_SOURCE = `${GAP_DASH} (no source)`;
 
 const pick = (v, allowed) => {
   const s = typeof v === "string" ? v.trim().toLowerCase() : "";
   return allowed.includes(s) ? s : "unrated";
 };
 const asObj = (v) => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
+const short = (s, n) => (s.length > n ? `${s.slice(0, n)}...` : s);
+
+/**
+ * True for a cite to check as a URL; false for a path into the user's
+ * repository ("src/app.ts", "README.md:12", "you said"). A one-letter scheme
+ * is a drive letter, and "name:12" is a path with a line locator.
+ */
+function isUrlCite(s) {
+  if (/^[A-Za-z]:/.test(s)) return false;
+  if (/^[^:]*:\d+(?:-\d+)?$/.test(s)) return false;
+  return /^[a-z][a-z0-9+.-]+:/i.test(s);
+}
 
 /**
  * Builds the comparison. `cmp` is the parsed compare.json, `a` the analysed
@@ -41,6 +61,7 @@ function buildCompare(cmp, a, kit, repoRoot) {
   const tally = { file: 0, said: 0, unverified: 0 };
   const cited = new Set();
 
+  /** One cite into the user's repository, as an inline node. */
   const yourCite = (row, raw) => {
     const v = verifyCite(raw, repoRoot);
     if (v.kind === "said") {
@@ -56,13 +77,22 @@ function buildCompare(cmp, a, kit, repoRoot) {
     return { t: "unverified", text: printable(v.text), reason: v.reason };
   };
 
-  /** URL cites and brief row ids. Returns { sources, buildsOn, sourced }. */
-  const theirCites = (row, cites) => {
+  /**
+   * URL cites, brief row ids and, with opts.paths, cites into the user's
+   * repository. Returns { sources, buildsOn, repo, sourced }.
+   */
+  const citesOf = (row, cites, opts) => {
     const sources = [];
     const buildsOn = [];
+    const repo = [];
     let sourcedRow = false;
     for (const c of citeList(cites)) {
-      const m = typeof c === "string" ? ROW_ID_RE.exec(c.trim()) : null;
+      if (typeof c !== "string") {
+        log.ignored.push({ row, cite: describeValue(c), why: "a cite must be text" });
+        continue;
+      }
+      const s = c.trim();
+      const m = ROW_ID_RE.exec(s);
       if (m) {
         const rid = `${m[1].toUpperCase()}${Number(m[2])}`;
         const r = briefRows.byId.get(rid);
@@ -73,12 +103,12 @@ function buildCompare(cmp, a, kit, repoRoot) {
         if (!buildsOn.includes(rid)) buildsOn.push(rid);
         if (r.sources.length) {
           sourcedRow = true;
-          r.sources.forEach((s) => cited.add(s.id));
+          r.sources.forEach((src) => cited.add(src.id));
         }
         continue;
       }
-      if (typeof c !== "string") {
-        log.ignored.push({ row, cite: printable(JSON.stringify(c)), why: "a cite must be text" });
+      if (opts && opts.paths && !isUrlCite(s)) {
+        repo.push(yourCite(row, c));
         continue;
       }
       const res = resolveUrl(c, recs);
@@ -87,14 +117,20 @@ function buildCompare(cmp, a, kit, repoRoot) {
         cited.add(res.rec.id);
       } else log.ignored.push({ row, cite: shownUrl(c), why: res.why });
     }
-    return { sources, buildsOn, sourced: sources.length > 0 || sourcedRow };
+    const repoBacked = repo.some((n) => n.t === "file" || n.t === "said");
+    return { sources, buildsOn, repo, sourced: sources.length > 0 || sourcedRow || repoBacked };
   };
 
-  const citedInline = (c) => {
+  /** The cites of one row, inline. With opts.noLabel a row with no cite shows nothing extra. */
+  const citedInline = (c, opts) => {
     const inl = [];
     if (c.buildsOn.length) inl.push(`(builds on ${c.buildsOn.join(", ")}) `);
     if (c.sources.length) inl.push(...sourcesOrLabel(c.sources));
-    else if (!c.sourced) inl.push({ t: "label", text: INFERRED, kind: "inferred" });
+    c.repo.forEach((n, i) => {
+      inl.push(i ? ", " : " ");
+      inl.push(n);
+    });
+    if (!c.sourced && !c.repo.length && !(opts && opts.noLabel)) inl.push({ t: "label", text: INFERRED, kind: "inferred" });
     return inl;
   };
 
@@ -102,7 +138,7 @@ function buildCompare(cmp, a, kit, repoRoot) {
   const gap = (id) => ({ t: "p", inl: [{ t: "gap", text: kit.defaults[id] }] });
   const body = {};
 
-  // features side by side
+  // features side by side: their status only with a fetched page behind it
   const featureRows = [];
   listField(cmp, "features", label).forEach((r, i) => {
     const id = `C${i + 1}`;
@@ -110,15 +146,26 @@ function buildCompare(cmp, a, kit, repoRoot) {
     if (!name) return log.dropped.push({ row: id, why: "no feature name" });
     const them = asObj(r.them);
     const you = asObj(r.you);
-    let evidence = [{ t: "label", text: INFERRED, kind: "inferred" }];
-    if (them.evidence_url !== undefined && them.evidence_url !== null) {
-      const res = resolveUrl(them.evidence_url, recs);
-      if (res.rec) {
-        evidence = sourceCell([res.rec]);
-        cited.add(res.rec.id);
-      } else log.ignored.push({ row: id, cite: shownUrl(String(them.evidence_url)), why: res.why });
+    const ev = them.evidence_url;
+    let rec = null;
+    let why = "";
+    if (ev === undefined || ev === null) why = "no evidence_url; their status needs a page fetched for the brief";
+    else if (typeof ev !== "string") why = `evidence_url ${describeValue(ev)} is not text`;
+    else {
+      const res = resolveUrl(ev, recs);
+      if (res.rec) rec = res.rec;
+      else why = `evidence_url ${shownUrl(ev) || "(empty)"}: ${res.why}`;
     }
-    featureRows.push([id, name, pick(them.status, STATUS), evidence, pick(you.status, STATUS), [yourCite(id, you.cite)]]);
+    let themStatus = NO_SOURCE;
+    let evidence = GAP_DASH;
+    if (rec) {
+      themStatus = pick(them.status, STATUS);
+      evidence = sourceCell([rec]);
+      cited.add(rec.id);
+    } else {
+      log.dropped.push({ row: `${id} (${short(name, 60)}), their status`, why });
+    }
+    featureRows.push([id, name, themStatus, evidence, pick(you.status, STATUS), [yourCite(id, you.cite)]]);
   });
   body.features = featureRows.length
     ? [{ t: "table", head: ["ID", "Feature", "Them", "Their evidence", "You", "Your cite"], rows: featureRows }]
@@ -138,7 +185,7 @@ function buildCompare(cmp, a, kit, repoRoot) {
     .filter(Boolean);
   body.jobs_overlap = jobs.length ? [{ t: "table", head: ["Job", "Overlap", "Note"], rows: jobs }] : [gap("jobs_overlap")];
 
-  // openings and risks: text plus their-side cites
+  // openings and risks: text plus cites (their side, or a file in your repository)
   const citedList = (key, field, prefix) =>
     listField(cmp, key, label, { strings: true })
       .map((r, i) => {
@@ -149,7 +196,7 @@ function buildCompare(cmp, a, kit, repoRoot) {
           log.dropped.push({ row: id, why: `no ${field} text` });
           return null;
         }
-        return [{ t: "strong", text: `${id}.` }, " ", text, " ", ...citedInline(theirCites(id, o.cites))];
+        return [{ t: "strong", text: `${id}.` }, " ", text, " ", ...citedInline(citesOf(id, o.cites, { paths: true }))];
       })
       .filter(Boolean);
   const openings = citedList("openings", "opening", "P");
@@ -167,7 +214,7 @@ function buildCompare(cmp, a, kit, repoRoot) {
     body.pricing = [{
       t: "ul",
       items: [
-        [{ t: "strong", text: "Them:" }, " ", themText || "not found on the fetched pages", " ", ...(themText ? citedInline(theirCites("pricing (them)", them.cites)) : [])],
+        [{ t: "strong", text: "Them:" }, " ", themText || "not found on the fetched pages", " ", ...(themText ? citedInline(citesOf("pricing (them)", them.cites)) : [])],
         youText
           ? [{ t: "strong", text: "You:" }, " ", youText, " ", yourCite("pricing (you)", you.cite)]
           : [{ t: "strong", text: "You:" }, " ", { t: "label", text: "not answered", kind: "note" }],
@@ -175,7 +222,7 @@ function buildCompare(cmp, a, kit, repoRoot) {
     }];
   }
 
-  // positioning and next steps: advice, as plain text
+  // positioning: advice, as plain text
   const textList = (key) =>
     listField(cmp, key, label, { strings: true })
       .map((r) => cleanText(typeof r === "string" ? r : r.text))
@@ -186,9 +233,18 @@ function buildCompare(cmp, a, kit, repoRoot) {
   const risks = citedList("risks", "risk", "R");
   body.risks = risks.length ? [{ t: "ul", items: risks }] : [gap("risks")];
 
-  const steps = textList("next_steps");
+  // next steps: advice; an object step may carry cites like a risk
+  const steps = listField(cmp, "next_steps", label, { strings: true })
+    .map((r, i) => {
+      const o = typeof r === "string" ? { text: r } : r;
+      const text = cleanText(o.text);
+      if (!text) return null;
+      if (o.cites === undefined || o.cites === null) return [text];
+      return [text, " ", ...citedInline(citesOf(`next step ${i + 1}`, o.cites, { paths: true }), { noLabel: true })];
+    })
+    .filter(Boolean);
   body.next_steps = steps.length
-    ? [{ t: "p", inl: [{ t: "em", text: "Advice only. Nothing here has been done for you." }] }, { t: "ol", items: steps.map((s) => [s]) }]
+    ? [{ t: "p", inl: [{ t: "em", text: "Advice only. Nothing here has been done for you." }] }, { t: "ol", items: steps }]
     : [gap("next_steps")];
 
   // your side
@@ -245,4 +301,4 @@ function buildCompare(cmp, a, kit, repoRoot) {
   };
 }
 
-module.exports = { COMPARE_IDS, COMPARE_GAP_IDS, buildCompare };
+module.exports = { COMPARE_IDS, COMPARE_GAP_IDS, NO_SOURCE, isUrlCite, buildCompare };

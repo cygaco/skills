@@ -60,15 +60,24 @@ function recordTables(recs, opts) {
     blocks.push({ t: "p", inl: [opts.only ? "No fetched page is cited in this comparison." : "No page was fetched successfully."] });
   }
   if (!opts.only) {
-    const notFetched = recs.list.filter((r) => !r.ok && !r.loud);
-    if (notFetched.length) {
-      blocks.push({ t: "h3", text: "Not fetched" });
+    // Records that are not ok and not loud, split by what happened to them:
+    // the URL check refused them before any fetch, the fetch itself failed
+    // (an HTTP 403, a timeout), or the status is missing or not one we know.
+    const quiet = recs.list.filter((r) => !r.ok && !r.loud);
+    const groups = [
+      ["Refused by the URL check (not fetched)", quiet.filter((r) => r.status === "refused"), false],
+      ["Fetch failed", quiet.filter((r) => r.status === "failed"), true],
+      ["Other records (status missing or not recognised)", quiet.filter((r) => r.status !== "refused" && r.status !== "failed"), true],
+    ];
+    for (const [title, list, linkable] of groups) {
+      if (!list.length) continue;
+      blocks.push({ t: "h3", text: title });
       blocks.push({
         t: "table",
         head: ["#", "URL", "Class", "Status", "Reason"],
-        rows: notFetched.map((r) => [
+        rows: list.map((r) => [
           r.id,
-          r.guardOk ? { t: "link", label: r.href, href: r.href } : shownUrl(r.urlText) || "(no URL)",
+          linkable && r.guardOk ? { t: "link", label: r.href, href: r.href } : shownUrl(r.urlText) || "(no URL)",
           r.sourceClass,
           r.status,
           r.reason || (r.guardOk ? " " : `refused by the URL check: ${r.guardReason}`),

@@ -17,14 +17,22 @@
  * and never counts as a cite. Unless the record says status "refused" (the
  * check refused it before any fetch, as the command requires), it is reported
  * loudly: it means a fetch happened that should not have.
+ *
+ * Size: a draft file over 5 MB is refused unread, and every string in it is cut
+ * to MAX_FIELD characters as it is read, before anything looks at it. A cut
+ * string carries a trailing NUL mark, so it can never pass a check (a URL, a
+ * status, a slug or a path) that its full text would have failed.
  */
 
-const fs = require("fs");
 const { checkUrl, citeKey } = require("./guard");
-const { cleanText, printable, shownUrl } = require("./text");
-const { normalizeSlug, refuseSlug, slugFromHost } = require("./slug");
+const { cleanText, printable, shownUrl, clip, MAX_FIELD } = require("./text");
+const { refuseSlug } = require("./slug");
+const { readCapped } = require("./confine");
 
 class DraftError extends Error {}
+
+const MAX_DRAFT_BYTES = 5 * 1024 * 1024;
+const CUT_MARK = String.fromCharCode(0);
 
 const STATUSES = ["ok", "failed", "refused"];
 const SOURCE_CLASSES = ["product", "landing", "devdocs", "review", "appimg"];
@@ -34,22 +42,45 @@ const SEVERITY = ["low", "medium", "high"];
 const ROW_ID_RE = /^([JFQGO])(\d{1,4})$/i;
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})$/;
 
-function readJsonFile(file, label, shownAs) {
-  let text;
-  try {
-    text = fs.readFileSync(file, "utf8");
-  } catch (e) {
-    throw new DraftError(`${label} not found or unreadable: ${printable(shownAs || file)}`);
+/** Cuts every string in a parsed document to MAX_FIELD characters, in place. No recursion. */
+function clampStrings(doc) {
+  const stack = [doc];
+  while (stack.length) {
+    const x = stack.pop();
+    for (const k of Array.isArray(x) ? x.keys() : Object.keys(x)) {
+      const v = x[k];
+      if (typeof v === "string") {
+        if (v.length > MAX_FIELD) x[k] = clip(v, MAX_FIELD) + CUT_MARK;
+      } else if (v && typeof v === "object") stack.push(v);
+    }
   }
+  return doc;
+}
+
+function readJsonFile(file, label, shownAs) {
+  const got = readCapped(file, MAX_DRAFT_BYTES);
+  if (!got.ok && got.why === "too-big") {
+    throw new DraftError(`${label} is larger than 5 MB; a draft holds text and URLs only, so trim it: ${printable(shownAs || file)}`);
+  }
+  if (!got.ok) throw new DraftError(`${label} not found or unreadable: ${printable(shownAs || file)}`);
+  let text = got.buf.toString("utf8");
   if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
   let doc;
   try {
     doc = JSON.parse(text);
   } catch (e) {
-    throw new DraftError(`${label} is not valid JSON (${e.message})`);
+    throw new DraftError(`${label} is not valid JSON (${printable(e.message)})`);
   }
   if (!doc || typeof doc !== "object" || Array.isArray(doc)) throw new DraftError(`${label} must be a JSON object`);
-  return doc;
+  return clampStrings(doc);
+}
+
+/** A non-text value as short display text, without serialising it. */
+function describeValue(v) {
+  if (v === null) return "null";
+  if (Array.isArray(v)) return "(a list)";
+  if (typeof v === "object") return "(an object)";
+  return printable(String(v));
 }
 
 function parseGeneratedAt(value, label) {
@@ -90,18 +121,13 @@ function readTarget(doc, label) {
   const urlText = typeof t.url === "string" ? t.url.trim() : "";
   if (!name && !urlText) throw new DraftError(`${label}.target needs a name or a url`);
   const guard = urlText ? checkUrl(urlText) : null;
-  let slug;
-  if (t.slug !== undefined && t.slug !== null) {
-    if (typeof t.slug !== "string") throw new DraftError(`${label}.target.slug must be text`);
-    const why = refuseSlug(t.slug);
-    if (why) throw new DraftError(`${label}.target.slug: ${why}`);
-    slug = t.slug;
-  } else {
-    slug = name ? normalizeSlug(name.replace(/^www\./i, "")) : "";
-    if (!slug && guard && guard.ok) slug = slugFromHost(guard.hostname);
-    const why = refuseSlug(slug);
-    if (why) throw new DraftError(`${label}.target gives no usable slug (${why}); set target.slug to the slug the check printed`);
+  if (t.slug === undefined || t.slug === null || t.slug === "") {
+    throw new DraftError(`${label}.target.slug is required: copy the slug that report.js check printed`);
   }
+  if (typeof t.slug !== "string") throw new DraftError(`${label}.target.slug must be text`);
+  const why = refuseSlug(t.slug);
+  if (why) throw new DraftError(`${label}.target.slug: ${printable(why)}`);
+  const slug = t.slug;
   return { name: name || (guard && guard.ok ? guard.hostname.replace(/^www\./, "") : slug), urlText, guard, resolvedVia: cleanText(t.resolved_via, 200), slug };
 }
 
@@ -177,7 +203,7 @@ function buildRows(doc, recs, label) {
   const log = { dropped: [], ignored: [] };
   const byId = new Map();
   const drop = (id, why) => log.dropped.push({ row: id, why });
-  const ignore = (id, cite, why) => log.ignored.push({ row: id, cite: typeof cite === "string" ? shownUrl(cite) : printable(JSON.stringify(cite)), why });
+  const ignore = (id, cite, why) => log.ignored.push({ row: id, cite: typeof cite === "string" ? shownUrl(cite) : describeValue(cite), why });
 
   const urlSources = (id, cites) => {
     const out = [];
@@ -293,7 +319,7 @@ function readIdentity(doc, recs, label, log) {
   const sources = [];
   for (const c of citeList(pi.cites)) {
     if (typeof c !== "string") {
-      log.ignored.push({ row: "identity", cite: printable(JSON.stringify(c)), why: "a cite must be text" });
+      log.ignored.push({ row: "identity", cite: describeValue(c), why: "a cite must be text" });
       continue;
     }
     const res = resolveUrl(c, recs);
@@ -326,7 +352,10 @@ module.exports = {
   DraftError,
   FIRST_PARTY,
   SOURCE_CLASSES,
+  MAX_DRAFT_BYTES,
   readJsonFile,
+  clampStrings,
+  describeValue,
   parseGeneratedAt,
   listField,
   citeList,

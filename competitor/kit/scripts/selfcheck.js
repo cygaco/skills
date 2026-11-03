@@ -16,11 +16,19 @@
  * output captured and the exit code returned.
  *
  * Covers: no process or network module anywhere in the kit; every URL-check
- * rule, with allowed controls; slugs and output confinement; check and
- * check-url; a full brief in both formats; a hostile brief (escaping, dropped
- * rows, refused records, labels); bad drafts; missing and broken templates;
- * unexpected errors; the comparison with valid, missing, "..", absolute and
- * drive-letter path cites and "you said"; and every exit code.
+ * rule, with allowed controls (special-use ranges, embedded IPv4, the length
+ * cap, linear trailing-dot handling); slugs and output confinement; check and
+ * check-url, by argument and by file (--target-file, --file: confinement,
+ * size, line rules, the 200-URL cap); the prepared output folder (created,
+ * idempotent, links and junctions refused); writes through a temporary file
+ * (hard links replaced, non-regular targets refused, a folder swapped
+ * mid-write refused); a full brief in both formats; a hostile brief (escaping,
+ * dropped rows, refused records, labels); the records tables (refused, failed,
+ * other); every scheme:// in Markdown neutralised; bad drafts, the 5 MB draft
+ * cap and the read-time string cap; missing and broken templates; unexpected
+ * errors; the comparison with valid, missing, "..", absolute and drive-letter
+ * path cites and "you said", feature rows without a fetched source, and file
+ * cites on openings, risks and next steps; and every exit code.
  */
 
 const fs = require("fs");
@@ -37,8 +45,33 @@ const guard = require("./lib/guard");
 const slugLib = require("./lib/slug");
 const text = require("./lib/text");
 const confine = require("./lib/confine");
+const draftLib = require("./lib/draft");
 const { BRIEF_FILES, COMPARE_FILES } = require("./lib/templates");
 const { CEILING } = require("./lib/brief");
+
+const LINK_TYPE = process.platform === "win32" ? "junction" : "dir";
+
+/** Creates a folder link (a junction on Windows). Returns false when this system cannot. */
+function linkDir(target, at) {
+  try {
+    fs.symlinkSync(target, at, LINK_TYPE);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/** The text of one "### title" section of a Markdown report, up to the next heading. */
+function mdSection(md, title) {
+  const at = md.indexOf(`### ${title}\n`);
+  if (at < 0) return null;
+  const rest = md.slice(at + title.length + 5);
+  const next = rest.search(/^#{2,3} /m);
+  return next < 0 ? rest : rest.slice(0, next);
+}
+
+/** True when the Markdown has a "://" whose colon is not backslash-escaped. */
+const liveScheme = (md) => /(^|[^\\]):\/\//m.test(md);
 
 // ---------------------------------------------------------------- reporting
 
@@ -175,6 +208,7 @@ function assertNeutral(prefix, md, html, allowed) {
   check(`${prefix} md has no other link syntax`, !/(^|[^\\])\]\(/m.test(bare) && !/(^|[^\\])\]\[/m.test(bare) && !/^ {0,3}\[[^\]\n]*\]:/m.test(bare));
   check(`${prefix} md has no raw HTML or angle autolink`, !rest.includes("<"));
   check(`${prefix} md has no bare URL or www autolink`, !/https?:\/\//i.test(rest) && !/\bwww\./i.test(rest));
+  check(`${prefix} md has no unescaped "://" after any scheme`, !liveScheme(rest), () => (rest.match(/.{0,30}[^\\]:\/\/.{0,30}/) || [""])[0]);
   check(`${prefix} md has no javascript, data or other script scheme`, !/\b(javascript|vbscript|data|file|mailto):/i.test(rest));
   check(`${prefix} md has no unescaped email autolink`, !/[A-Za-z0-9._%+-]@[A-Za-z0-9-]+\./.test(rest));
 }
@@ -284,12 +318,46 @@ function checkGuard() {
     ["IPv4-compatible 10/8", "http://[::10.0.0.1]/", "10.0.0.0/8"],
     ["NAT64 embedding", "http://[64:ff9b::127.0.0.1]/", "NAT64"],
     ["6to4 embedding", "http://[2002:a9fe:a9fe::]/", "6to4"],
+    // Special-use IPv4 and IPv6 ranges.
+    ["special-use IPv4 192.0.0.0/24", "http://192.0.0.8/", "192.0.0.0/24"],
+    ["special-use IPv4 192.0.2.0/24", "http://192.0.2.1/", "192.0.2.0/24"],
+    ["special-use IPv4 192.88.99.0/24", "http://192.88.99.1/", "192.88.99.0/24"],
+    ["special-use IPv4 198.18.0.0/15 low", "http://198.18.0.1/", "198.18.0.0/15"],
+    ["special-use IPv4 198.18.0.0/15 high", "http://198.19.255.255/", "198.18.0.0/15"],
+    ["special-use IPv4 198.51.100.0/24", "http://198.51.100.1/", "198.51.100.0/24"],
+    ["special-use IPv4 203.0.113.0/24", "http://203.0.113.1/", "203.0.113.0/24"],
+    ["special-use IPv6 2001:db8::/32", "http://[2001:db8::1]/", "2001:db8::/32"],
+    ["special-use IPv4-mapped 192.0.2.1", "http://[::ffff:192.0.2.1]/", "192.0.2.0/24"],
+    ["special-use IPv4-compatible 198.51.100.1", "http://[::198.51.100.1]/", "198.51.100.0/24"],
+    ["NAT64 hex form of 127.0.0.1", "http://[64:ff9b::7f00:1]/", "NAT64"],
+    ["special-use NAT64 form of 192.0.2.1", "http://[64:ff9b::c000:201]/", "NAT64 IPv6 form of 192.0.2.1"],
+    ["special-use 6to4 form of 203.0.113.1", "http://[2002:cb00:7101::]/", "6to4 IPv6 form of 203.0.113.1"],
+    ["special-use 6to4 form of 198.18.0.1", "http://[2002:c612:1::]/", "198.18.0.0/15"],
   ];
   for (const [rule, url, frag] of refused) {
     const r = guard.checkUrl(url);
     check(`guard.refuses ${rule}`, !r.ok && String(r.reason).includes(frag), () => JSON.stringify(r));
   }
   check("guard.refuses an empty host", guard.refuseHost("") === "empty host" && guard.refuseHost("...") === "empty host");
+
+  // Length cap and linear trailing-dot handling.
+  const atCap = `https://example.com/${"a".repeat(guard.MAX_URL - 20)}`;
+  const overCap = `${atCap}a`;
+  let r = guard.checkUrl(overCap);
+  check("guard.refuses a URL over 2048 characters (URL too long)", !r.ok && /URL too long/.test(r.reason), () => JSON.stringify(r).slice(0, 200));
+  check("guard.allows a URL of exactly 2048 characters", atCap.length === 2048 && guard.checkUrl(atCap).ok === true);
+  r = guard.checkUrl(`https://example.com/${"x".repeat(5000000)}`);
+  check("guard.refuses a 5,000,000-character URL as too long", !r.ok && /URL too long/.test(r.reason));
+  let t0 = Date.now();
+  const why = guard.refuseHost(`${".".repeat(200000)}a`);
+  let ms = Date.now() - t0;
+  check(`guard.a host of 200,000 dots and a letter is judged at once (${ms} ms)`, typeof why === "string" && ms < 500, () => `${why} after ${ms} ms`);
+  const trim = typeof guard.trimTrailingDots === "function" ? guard.trimTrailingDots : null;
+  t0 = Date.now();
+  const trimmed = trim ? trim(`${"a.".repeat(5)}${".".repeat(1000000)}`) : null;
+  const dotsBefore = trim ? trim(`${".".repeat(1000000)}a`) : null;
+  ms = Date.now() - t0;
+  check(`guard.trailing dots are trimmed in one linear pass (1,000,000 dots: ${ms} ms)`, trimmed === "a.a.a.a.a" && dotsBefore && dotsBefore.length === 1000001 && ms < 500, () => (trim ? `${ms} ms` : "no linear trim function"));
   const allowed = [
     ["normal https URL", "https://www.example.com/pricing"],
     ["public IPv4 8.8.8.8", "http://8.8.8.8/"],
@@ -303,10 +371,19 @@ function checkGuard() {
     ["next to 192.168/16", "http://192.169.0.1/"],
     ["just below 224/4", "http://223.255.255.255/"],
     ["port, query and fragment", "https://example.com:8443/a?b=1#c"],
+    ["just below 192.0.0.0/24", "http://191.255.255.255/"],
+    ["next to 192.0.2.0/24", "http://192.0.3.1/"],
+    ["next to 192.88.99.0/24", "http://192.88.98.1/"],
+    ["just below 198.18/15", "http://198.17.255.255/"],
+    ["just above 198.18/15", "http://198.20.0.1/"],
+    ["next to 198.51.100.0/24", "http://198.51.101.1/"],
+    ["next to 203.0.113.0/24", "http://203.0.114.1/"],
+    ["next to 2001:db8::/32", "http://[2001:db9::1]/"],
+    ["NAT64 form of a public address", "http://[64:ff9b::808:808]/"],
   ];
   for (const [rule, url] of allowed) {
-    const r = guard.checkUrl(url);
-    check(`guard.allows ${rule}`, r.ok === true, () => JSON.stringify(r));
+    const res = guard.checkUrl(url);
+    check(`guard.allows ${rule}`, res.ok === true, () => JSON.stringify(res));
   }
   check("guard.normalises before judging", guard.checkUrl("HTTPS://WWW.Example.COM:443/x").href === "https://www.example.com/x");
   check("guard.cite match ignores fragment, case and trailing slash", guard.citeKey("https://Example.com/pricing/#plans") === guard.citeKey("https://example.com/pricing"));
@@ -342,20 +419,25 @@ function checkSlugs() {
 // ---------------------------------------------------------------- 4. check and check-url
 
 function checkCheck() {
-  let r = cli(["check", "--target", "Acme Notes"]);
-  check("check.name prints the slug, exit 0", r.code === 0 && r.out.join("|") === "slug: acme-notes", () => JSON.stringify(r));
-  r = cli(["check", "--target=https://www.Example.com/x"]);
-  check("check.url prints slug and normalised url, exit 0", r.code === 0 && r.out.join("|") === "slug: example-com|url: https://www.example.com/x", () => JSON.stringify(r));
-  r = cli(["check", "--target", "http://127.0.0.1/"]);
-  check("check.refused url exits 2 with refused: reason", r.code === 2 && /^refused: IPv4 127/.test(r.out[0] || ""), () => JSON.stringify(r));
-  r = cli(["check", "--target", "javascript:alert(1)"]);
+  const repo = makeRepo();
+  const at = { cwd: repo };
+  let r = cli(["check", "--target", "Acme Notes"], at);
+  check("check.name prints the slug and the prepared folder, exit 0", r.code === 0 && r.out.join("|") === "slug: acme-notes|dir: competitor/acme-notes/", () => JSON.stringify(r));
+  r = cli(["check", "--target=https://www.Example.com/x"], at);
+  check("check.url prints slug, normalised url and folder, exit 0", r.code === 0 && r.out.join("|") === "slug: example-com|url: https://www.example.com/x|dir: competitor/example-com/", () => JSON.stringify(r));
+  const fresh = makeRepo();
+  r = cli(["check", "--target", "http://127.0.0.1/"], { cwd: fresh });
+  check("check.refused url exits 2 with refused: reason, and prepares no folder", r.code === 2 && /^refused: IPv4 127/.test(r.out[0] || "") && !exists(fresh, "competitor"), () => JSON.stringify(r));
+  r = cli(["check", "--target", "javascript:alert(1)"], at);
   check("check.refused scheme exits 2", r.code === 2 && /^refused: scheme/.test(r.out[0] || ""));
-  r = cli(["check", "--target", "CON"]);
+  r = cli(["check", "--target", "CON"], at);
   check("check.reserved slug exits 2", r.code === 2 && /reserved/.test(r.out[0] || ""));
-  r = cli(["check", "--target", String.fromCharCode(0x65e5, 0x672c)]);
+  r = cli(["check", "--target", String.fromCharCode(0x65e5, 0x672c)], at);
   check("check.name with no usable slug exits 2", r.code === 2 && /^refused: the slug is empty/.test(r.out[0] || ""));
-  r = cli(["check", "--target", "a\u0007b"]);
+  r = cli(["check", "--target", "a\u0007b"], at);
   check("check.name with control characters exits 2", r.code === 2 && /control/.test(r.out[0] || ""));
+  r = cli(["check", "--target", "x".repeat(301)], at);
+  check("check.a target over 300 characters is refused, exit 2", r.code === 2 && /^refused: the target is longer than 300 characters/.test(r.out[0] || ""), () => JSON.stringify(r.out));
   for (const [what, argv] of [
     ["no target", ["check"]],
     ["target without a value", ["check", "--target"]],
@@ -385,6 +467,123 @@ function checkCheck() {
   check("check-url.all ok exits 0", r.code === 0 && r.out.length === 2 && r.out.every((l) => l.startsWith("ok ")));
   r = cli(["check-url"]);
   check("check-url.no URL is a usage error, exit 2", r.code === 2 && r.err.some((l) => l.startsWith("usage error:")));
+  r = cli(["check-url", `https://example.com/${"a".repeat(3000)}`]);
+  check("check-url.a URL over 2048 characters is refused as too long", r.code === 2 && /^refused https:\/\/example\.com\/a+\.\.\.: URL too long/.test(r.out[0] || ""), () => JSON.stringify(r.out).slice(0, 300));
+}
+
+// ---------------------------------------------------------------- 4b. input files: check --target-file, check-url --file
+
+function checkInputFiles() {
+  const repo = makeRepo();
+  const at = { cwd: repo };
+  const outsideDir = path.join(TMP, `outside-input-${repoCount}`);
+  fs.mkdirSync(outsideDir, { recursive: true });
+  const outsideFile = path.join(outsideDir, "urls.txt");
+  fs.writeFileSync(outsideFile, "https://www.example.com/\n");
+
+  // check-url --file
+  putJson(repo, "competitor/acme-notes/urls.txt", [
+    "# links found on the pricing page",
+    "",
+    "  https://www.example.com/  ",
+    "https://evil.example/$(whoami)",
+    "http://127.0.0.1/",
+    "   ",
+    "https://docs.example.com/start",
+  ].join("\n"));
+  let r = cli(["check-url", "--file", "competitor/acme-notes/urls.txt"], at);
+  const want = [
+    "ok https://www.example.com/",
+    "ok https://evil.example/$(whoami)",
+    "refused http://127.0.0.1/: IPv4 127.0.0.0/8 (loopback)",
+    "ok https://docs.example.com/start",
+  ];
+  check("file-input.check-url --file checks one URL per line, skipping blank and # lines (exit 2: one refused)", r.code === 2 && r.out.join("\n") === want.join("\n"), () => JSON.stringify(r));
+  check("file-input.a $(...) in a URL read from the file is printed as plain data", r.out.includes("ok https://evil.example/$(whoami)"));
+  putJson(repo, "competitor/acme-notes/ok.txt", "https://www.example.com/\r\nhttps://docs.example.com/start\r\n");
+  r = cli(["check-url", "--file=competitor/acme-notes/ok.txt"], at);
+  check("file-input.check-url --file with only ok URLs exits 0 (CRLF lines)", r.code === 0 && r.out.length === 2 && r.out.every((l) => l.startsWith("ok ")), () => JSON.stringify(r));
+  const many = Array.from({ length: 205 }, (_, i) => `https://www.example.com/p${i + 1}`);
+  putJson(repo, "competitor/acme-notes/many.txt", many.join("\n"));
+  r = cli(["check-url", "--file", "competitor/acme-notes/many.txt"], at);
+  check("file-input.check-url --file checks at most 200 URLs and refuses the rest unchecked", r.code === 2 && r.out.length === 205 && r.out.slice(0, 200).every((l) => l.startsWith("ok ")) &&
+    r.out.slice(200).every((l) => l.startsWith("refused ") && l.includes("not checked")) && r.out[200].startsWith("refused https://www.example.com/p201: not checked"), () => JSON.stringify(r.out.slice(198)));
+  r = cli(["check-url", "--file", outsideFile], at);
+  check("file-input.check-url --file outside the repository is refused, exit 2", r.code === 2 && r.out.length === 1 && /^refused: --file must name a file inside this repository/.test(r.out[0] || ""), () => JSON.stringify(r));
+  r = cli(["check-url", "--file", path.join("..", path.basename(outsideDir), "urls.txt")], at);
+  check("file-input.check-url --file that climbs out with .. is refused, exit 2", r.code === 2 && /^refused: --file must name a file inside this repository/.test(r.out[0] || ""), () => JSON.stringify(r));
+  if (linkDir(outsideDir, path.join(repo, "linked-out"))) {
+    r = cli(["check-url", "--file", "linked-out/urls.txt"], at);
+    check("file-input.check-url --file through a link that leaves the repository is refused", r.code === 2 && /^refused: --file must name a file inside this repository/.test(r.out[0] || ""), () => JSON.stringify(r));
+  } else skip("file-input.check-url --file through a link that leaves the repository is refused", "cannot create a link here");
+  putJson(repo, "competitor/acme-notes/big.txt", `https://www.example.com/\n${"#".repeat(70 * 1024)}\n`);
+  r = cli(["check-url", "--file", "competitor/acme-notes/big.txt"], at);
+  check("file-input.check-url --file over 64 KB is refused, exit 2", r.code === 2 && /^refused: --file is larger than 64 KB/.test(r.out[0] || ""), () => JSON.stringify(r));
+  r = cli(["check-url", "--file", "competitor/acme-notes/none.txt"], at);
+  check("file-input.check-url --file that does not exist is refused, exit 2", r.code === 2 && /^refused: --file: no such file/.test(r.out[0] || ""), () => JSON.stringify(r));
+  r = cli(["check-url", "--file", "competitor"], at);
+  check("file-input.check-url --file naming a folder is refused, exit 2", r.code === 2 && /^refused: --file/.test(r.out[0] || ""), () => JSON.stringify(r));
+  r = cli(["check-url", "--file", "competitor/acme-notes/ok.txt", "https://www.example.com/"], at);
+  check("file-input.check-url with --file and URLs together is a usage error", r.code === 2 && r.err.some((l) => l.startsWith("usage error:")) && r.out.length === 0);
+
+  // check --target-file
+  putJson(repo, "target.txt", "\n\n  Acme Notes  \nsecond line is ignored\n");
+  r = cli(["check", "--target-file", "target.txt"], at);
+  check("file-input.check --target-file reads the first non-blank line", r.code === 0 && r.out.join("|") === "slug: acme-notes|dir: competitor/acme-notes/", () => JSON.stringify(r));
+  putJson(repo, "target-url.txt", "https://www.Example.com/$(whoami)\n");
+  r = cli(["check", "--target-file", "target-url.txt"], at);
+  check("file-input.check --target-file with a URL prints slug, url and folder; $(...) stays data", r.code === 0 && r.out.join("|") === "slug: example-com|url: https://www.example.com/$(whoami)|dir: competitor/example-com/", () => JSON.stringify(r));
+  putJson(repo, "long-target.txt", `${"x".repeat(301)}\n`);
+  r = cli(["check", "--target-file", "long-target.txt"], at);
+  check("file-input.check --target-file with a target over 300 characters is refused, exit 2", r.code === 2 && /^refused: the target is longer than 300 characters/.test(r.out[0] || ""), () => JSON.stringify(r));
+  r = cli(["check", "--target-file", outsideFile], at);
+  check("file-input.check --target-file outside the repository is refused, exit 2", r.code === 2 && /^refused: --target-file must name a file inside this repository/.test(r.out[0] || ""), () => JSON.stringify(r));
+  putJson(repo, "big-target.txt", `Acme\n${" ".repeat(70 * 1024)}`);
+  r = cli(["check", "--target-file", "big-target.txt"], at);
+  check("file-input.check --target-file over 64 KB is refused, exit 2", r.code === 2 && /^refused: --target-file is larger than 64 KB/.test(r.out[0] || ""), () => JSON.stringify(r));
+  putJson(repo, "blank-target.txt", "\n   \n");
+  r = cli(["check", "--target-file", "blank-target.txt"], at);
+  check("file-input.check --target-file with no target line is a usage error", r.code === 2 && r.err.some((l) => l.startsWith("usage error:")) && r.out.length === 0, () => JSON.stringify(r));
+  r = cli(["check", "--target", "Acme", "--target-file", "target.txt"], at);
+  check("file-input.check with --target and --target-file together is a usage error", r.code === 2 && r.err.some((l) => l.startsWith("usage error:")) && r.out.length === 0);
+}
+
+// ---------------------------------------------------------------- 4c. the prepared output folder
+
+function checkDirPrep() {
+  const repo = makeRepo();
+  let r = cli(["check", "--target", "Acme Notes"], { cwd: repo });
+  const st = (rel) => fs.lstatSync(path.join(repo, ...rel.split("/")));
+  check("dir.check creates competitor/ and competitor/<slug>/ as real folders and prints dir:", r.code === 0 && r.out.includes("dir: competitor/acme-notes/") &&
+    st("competitor").isDirectory() && !st("competitor").isSymbolicLink() && st("competitor/acme-notes").isDirectory() && !st("competitor/acme-notes").isSymbolicLink(), () => JSON.stringify(r));
+  r = cli(["check", "--target", "Acme Notes"], { cwd: repo });
+  check("dir.check on an already prepared folder exits 0 again", r.code === 0 && r.out.includes("dir: competitor/acme-notes/"));
+
+  const outside = path.join(TMP, `dir-outside-${repoCount}`);
+  fs.mkdirSync(outside, { recursive: true });
+  const repo2 = makeRepo();
+  fs.mkdirSync(path.join(repo2, "competitor"));
+  if (linkDir(outside, path.join(repo2, "competitor", "acme-notes"))) {
+    r = cli(["check", "--target", "Acme Notes"], { cwd: repo2 });
+    check("dir.check refuses a linked competitor/<slug> (exit 2, no slug printed)", r.code === 2 && r.out.length === 1 && /^refused: competitor\/acme-notes\/ is a symbolic link or junction/.test(r.out[0] || "") && fs.readdirSync(outside).length === 0, () => JSON.stringify(r));
+    putJson(repo2, "draft.json", fixture("draft-full.json"));
+    r = cli(["brief", "--draft", "draft.json"], { cwd: repo2 });
+    check("dir.brief refuses a linked competitor/<slug> too (exit 2, nothing written outside)", r.code === 2 && /^refused: competitor\/acme-notes\/ is a symbolic link or junction/.test(r.out[0] || "") && fs.readdirSync(outside).length === 0, () => JSON.stringify(r));
+  } else skip("dir.check refuses a linked competitor/<slug>", "cannot create a link here");
+  const repo3 = makeRepo();
+  if (linkDir(outside, path.join(repo3, "competitor"))) {
+    r = cli(["check", "--target", "Acme Notes"], { cwd: repo3 });
+    check("dir.check refuses a linked competitor/ folder (exit 2, nothing created outside)", r.code === 2 && /^refused: competitor\/ is a symbolic link or junction/.test(r.out[0] || "") && fs.readdirSync(outside).length === 0, () => JSON.stringify(r));
+  } else skip("dir.check refuses a linked competitor/ folder", "cannot create a link here");
+  const repo4 = makeRepo();
+  fs.writeFileSync(path.join(repo4, "competitor"), "a file where the folder should be");
+  r = cli(["check", "--target", "Acme Notes"], { cwd: repo4 });
+  check("dir.check refuses when competitor is a file, not a folder", r.code === 2 && /^refused: competitor\/ is not a folder/.test(r.out[0] || ""), () => JSON.stringify(r));
+  const repo5 = makeRepo();
+  fs.mkdirSync(path.join(repo5, "competitor"));
+  fs.writeFileSync(path.join(repo5, "competitor", "acme-notes"), "a file where the folder should be");
+  r = cli(["check", "--target", "Acme Notes"], { cwd: repo5 });
+  check("dir.check refuses when competitor/<slug> is a file, not a folder", r.code === 2 && /^refused: competitor\/acme-notes\/ is not a folder/.test(r.out[0] || ""), () => JSON.stringify(r));
 }
 
 // ---------------------------------------------------------------- 5. the brief
@@ -409,7 +608,8 @@ function checkBriefFull() {
   check("brief.full attribution log carries the ceiling sentence verbatim (md, html)", md.includes(CEILING) && html.includes(CEILING) && CEILING === "every quote cites a page this session fetched; the engine cannot prove the quote is on that page.");
   check("brief.full renders every feature and quote row", ["F1", "F2", "F3", "F4", "Q1", "Q2", "Q3"].every((id) => md.includes(`| ${id} |`)));
   check("brief.full has no inferred label when every row is sourced", !md.includes("inferred, no source*") && r.out.includes("inferred, no source: 0 rows"));
-  check("brief.full lists the refused-before-fetch record quietly as not fetched", /\| S8 \| http\\:\/\/192\.168\.1\.10\/admin \| landing \| refused \|/.test(md));
+  const refusedTable = mdSection(md, "Refused by the URL check (not fetched)") || "";
+  check("brief.full lists the refused-before-fetch record quietly under its own heading", /\| S8 \| http\\:\/\/192\.168\.1\.10\/admin \| landing \| refused \|/.test(refusedTable), () => refusedTable);
   assertNeutral("brief.full", md, html, allowedHrefs(draft));
 
   const elsewhere = path.join(TMP, "elsewhere-cwd");
@@ -453,6 +653,50 @@ function checkBriefHostile() {
   check("brief.hostile marks unknown enums unrated", md.includes("| unrated | unrated |") && md.includes("| G2 | \\# Heading injection &lt;svg onload=alert(1)&gt; | unrated |"));
 }
 
+/** The records tables: refused before any fetch, fetch failed, and other statuses, each under its own heading. */
+function checkRecordTables() {
+  const repo = makeRepo();
+  const draft = fixture("draft-full.json");
+  draft.source_records = draft.source_records.concat([
+    { url: "https://reviews.example.net/acme", source_class: "review", status: "failed", failure_reason: "HTTP 403 Forbidden", retrieved_at: "2026-11-01T09:12:00Z" },
+    { url: "https://www.example.com/about", source_class: "product", status: "ok", retrieved_at: "2026-11-01T09:20:00Z" },
+    { url: "https://www.example.com/blog", source_class: "product", status: "skipped", retrieved_at: "2026-11-01T09:21:00Z" },
+  ]);
+  putJson(repo, "competitor/acme-notes/draft.json", draft);
+  const r = cli(["brief", "--draft", "competitor/acme-notes/draft.json"], { cwd: repo });
+  const md = read(repo, "competitor/acme-notes/acme-notes.competitor.md");
+  const html = read(repo, "competitor/acme-notes/acme-notes.competitor.html");
+  const failed = mdSection(md, "Fetch failed") || "";
+  const refusedFirst = mdSection(md, "Refused by the URL check (not fetched)") || "";
+  const other = mdSection(md, "Other records (status missing or not recognised)") || "";
+  check("records.failed fetches (HTTP 403, 404) sit under Fetch failed, not with refused records", r.code === 0 && failed.includes("| S7 |") && failed.includes("| S9 |") && failed.includes("HTTP 403 Forbidden") && !failed.includes("| S8 |"), () => failed || md.slice(-1500));
+  check("records.refused-before-fetch records sit under Refused by the URL check (not fetched)", refusedFirst.includes("| S8 |") && !refusedFirst.includes("| S7 |") && !refusedFirst.includes("| S9 |"), () => refusedFirst);
+  check("records.an unknown status sits under its own heading", other.includes("| S11 |") && other.includes("unknown (skipped)"), () => other);
+  check("records.no mixed Not fetched heading remains (md, html)", !md.includes("### Not fetched") && html.includes("<h3>Fetch failed</h3>") && html.includes("<h3>Refused by the URL check (not fetched)</h3>"));
+  check("records.a record without a length shows a blank Length cell", /\| S10 \| \[[^\]]+\]\(<https:\/\/www\.example\.com\/about>\) \| product \| +\| 2026-11-01T09:20:00Z \|/.test(md), () => (md.match(/\| S10 \|.*$/m) || [""])[0]);
+  assertNeutral("records", md, html, allowedHrefs(draft));
+}
+
+/** Every scheme:// in draft text is neutralised in Markdown, whatever precedes it. */
+function checkMdSchemes() {
+  const repo = makeRepo();
+  const draft = {
+    generated_at: "2026-11-01T09:30:00Z",
+    target: { slug: "x-co", name: "X Co xhttp://127.0.0.1/" },
+    source_records: [],
+    jtbds: [{ job: "see xhttp://127.0.0.1/ and xftp://evil.example/", why: "Ahttps://evil.example/x _http://evil.example" }],
+    gaps: [{ gap: "1http://evil.example/ x://evil.example/ a.b+c://evil.example/ xwww.evil.example" }],
+    opportunities: [{ opportunity: "javascript\\://x and xmailto:someone" }],
+  };
+  putJson(repo, "competitor/x-co/draft.json", draft);
+  const r = cli(["brief", "--draft", "competitor/x-co/draft.json"], { cwd: repo });
+  const md = read(repo, "competitor/x-co/x-co.competitor.md");
+  check("md.brief with no sources renders, exit 0", r.code === 0, () => JSON.stringify(r));
+  check("md.no scheme:// in draft text stays live, whatever precedes it (xhttp, xftp, Ahttps, _http, 1http, x://)", !liveScheme(md), () => (md.match(/.{0,30}[^\\]:\/\/.{0,30}/) || [""])[0]);
+  check("md.the report holds no link at all when no source passed the URL check", !/\]\(/.test(md.replace(/\\\]\(/g, "")) && !/\bhref=/.test(read(repo, "competitor/x-co/x-co.competitor.html")));
+  check("md.a www. inside a word is neutralised too", md.includes("xwww\\.evil") && !/(^|[^\\])www\./i.test(md.replace(/www\\\./gi, "")), () => (md.match(/.{0,20}www.{0,20}/i) || [""])[0]);
+}
+
 function checkBriefBad() {
   const base = fixture("draft-full.json");
   const variants = [
@@ -467,7 +711,8 @@ function checkBriefBad() {
     ["target.slug absolute", { ...base, target: { ...base.target, slug: "/abs" } }],
     ["target.slug with a drive letter", { ...base, target: { ...base.target, slug: "C:evil" } }],
     ["target.slug reserved", { ...base, target: { ...base.target, slug: "con" } }],
-    ["target.name giving a reserved slug", { ...base, target: { name: "NUL" } }],
+    ["target without a slug", { ...base, target: { name: "Acme Notes", url: "https://www.example.com/" } }],
+    ["target.slug that is empty", { ...base, target: { ...base.target, slug: "" } }],
     ["features that is not a list", { ...base, features: { name: "x" } }],
     ["a source record that is not an object", { ...base, source_records: ["https://www.example.com/"] }],
     ["product_identity that is not an object", { ...base, product_identity: "text" }],
@@ -488,6 +733,51 @@ function checkBriefBad() {
   check("brief.--repo-root that does not exist exits 2", r.code === 2 && r.err.some((l) => l.includes("--repo-root")));
   r = cli(["brief", "--draft", "d.json", "--out", "x"], { cwd: repo });
   check("brief.unknown flag exits 2", r.code === 2);
+  putJson(repo, "noslug.json", { ...base, target: { name: "Acme Notes" } });
+  r = cli(["brief", "--draft", "noslug.json"], { cwd: repo });
+  check("schema.target.slug is required and the error says to copy it from check", r.code === 2 && r.err.some((l) => /target\.slug is required: copy the slug that report\.js check printed/.test(l)), () => JSON.stringify(r));
+}
+
+/** Size limits: the 5 MB draft cap, the read-time string cap, and caps on the cut values. */
+function checkLimits() {
+  const base = fixture("draft-full.json");
+  const repo = makeRepo();
+  putJson(repo, "big.json", { ...base, jtbds: [{ job: "Big", why: "x".repeat(5.5 * 1024 * 1024) }] });
+  let r = cli(["brief", "--draft", "big.json"], { cwd: repo });
+  check("limits.a draft file over 5 MB is refused (exit 2, nothing written)", r.code === 2 && r.err.some((l) => l.startsWith("bad draft:") && l.includes("larger than 5 MB")) && !exists(repo, "competitor"), () => JSON.stringify(r).slice(0, 300));
+  putJson(repo, "cmp-big.json", { generated_at: "2026-11-03T10:00:00Z", positioning: ["y".repeat(5.5 * 1024 * 1024)] });
+  putJson(repo, "d.json", base);
+  r = cli(["compare", "--draft", "cmp-big.json", "--brief", "d.json"], { cwd: repo });
+  check("limits.a compare.json over 5 MB is refused too (exit 2)", r.code === 2 && r.err.some((l) => l.includes("larger than 5 MB")), () => JSON.stringify(r).slice(0, 300));
+
+  putJson(repo, "clamp.json", { ...base, note: "n".repeat(100000), nested: [{ deep: [{ deeper: "z".repeat(50000) }] }] });
+  const doc = draftLib.readJsonFile(path.join(repo, "clamp.json"), "draft");
+  check("limits.every string is cut to 8192 characters when the draft is read, nested ones too", doc.note.length === text.MAX_FIELD + 1 && doc.nested[0].deep[0].deeper.length === text.MAX_FIELD + 1 && doc.target.name === base.target.name, () => `${doc.note.length} ${doc.nested[0].deep[0].deeper.length}`);
+  check("limits.cleanText cuts its input to 8192 characters before reading it", text.cleanText(`a${" ".repeat(9000)}b`) === "a..." && text.cleanText("w".repeat(4000)) === "w".repeat(4000), () => text.cleanText(`a${" ".repeat(9000)}b`).slice(0, 40));
+  check("limits.printable reads only what it can show", text.printable("p".repeat(1000000)) === `${"p".repeat(300)}...`);
+  check("limits.a path cite over 1024 characters is unverified without being read", /longer than 1024/.test(confine.verifyCite(`${"a/".repeat(1000)}x`, repo).reason || ""));
+
+  // A cut value can never pass a check its full text would fail.
+  const sneaky = JSON.parse(JSON.stringify(base));
+  sneaky.source_records.push({ url: `https://www.example.com/pricing${" ".repeat(9000)}x`, source_class: "product", status: "ok", retrieved_at: "2026-11-01T09:30:00Z" });
+  sneaky.source_records.push({ url: "https://www.example.com/team", source_class: "product", status: `ok${" ".repeat(9000)}x`, retrieved_at: "2026-11-01T09:30:00Z" });
+  sneaky.features.push({ name: "Team page", description: "cited to a record whose status was cut", complexity: "S", coreness: 1, evidence_url: "https://www.example.com/team" });
+  putJson(repo, "competitor/acme-notes/draft.json", sneaky);
+  r = cli(["brief", "--draft", "competitor/acme-notes/draft.json"], { cwd: repo });
+  const md = read(repo, "competitor/acme-notes/acme-notes.competitor.md");
+  check("limits.a cut URL never passes the URL check (logged as a refused record)", r.code === 0 && r.err.some((l) => l.startsWith("REFUSED SOURCE RECORD https://www.example.com/pricing") && l.endsWith("URL too long (more than 2048 characters)")), () => JSON.stringify(r.err).slice(0, 400));
+  check("limits.a cut status never reads as ok (the feature citing it is dropped)", md.includes("| F5 (Team page) | evidence\\_url: its source record S10 has status unknown"), () => (md.match(/\| F5 .*$/m) || ["(no F5 row)"])[0]);
+
+  // A huge field inside the 5 MB cap renders, capped at 4,000 characters.
+  const huge = JSON.parse(JSON.stringify(base));
+  huge.gaps[0].gap = "q".repeat(4 * 1024 * 1024);
+  putJson(repo, "competitor/acme-notes/draft.json", huge);
+  const t0 = Date.now();
+  r = cli(["brief", "--draft", "competitor/acme-notes/draft.json"], { cwd: repo });
+  const ms = Date.now() - t0;
+  const md2 = read(repo, "competitor/acme-notes/acme-notes.competitor.md");
+  const html2 = read(repo, "competitor/acme-notes/acme-notes.competitor.html");
+  check(`limits.a 4 MB text field renders capped at 4,000 characters (${ms} ms)`, r.code === 0 && md2.includes(`${"q".repeat(4000)}...`) && !md2.includes("q".repeat(4001)) && !html2.includes("q".repeat(4001)), () => JSON.stringify(r).slice(0, 300));
 }
 
 // ---------------------------------------------------------------- 6. templates and unexpected errors
@@ -544,20 +834,113 @@ function checkTemplates() {
     check(`template.broken (${what}) exits 1 with no output`, r.code === 1 && r.out.length === 0 && r.err.some((l) => l.includes("template unreadable")) && !fs.existsSync(path.join(repo, "competitor")), () => JSON.stringify(r));
   }
 
-  // Unexpected errors: the write fails underneath the script.
+  // Output paths that are not what they should be are refused before anything is written.
   {
     const repo = makeRepo();
     putJson(repo, "draft.json", fixture("draft-full.json"));
     fs.mkdirSync(path.join(repo, "competitor", "acme-notes", "acme-notes.competitor.md"), { recursive: true });
     const r = cli(["brief", "--draft", "draft.json"], { cwd: repo });
-    check("brief.unexpected error (output path is a folder) exits 1", r.code === 1 && r.err.some((l) => l.startsWith("error: unexpected failure")), () => JSON.stringify(r));
+    check("write.an output path that is a folder is refused (exit 2, the other file not written either)", r.code === 2 &&
+      /^refused: competitor\/acme-notes\/acme-notes\.competitor\.md exists and is not a regular file/.test(r.out[0] || "") && !exists(repo, "competitor/acme-notes/acme-notes.competitor.html"), () => JSON.stringify(r));
   }
   {
     const repo = makeRepo();
     putJson(repo, "draft.json", fixture("draft-full.json"));
     fs.writeFileSync(path.join(repo, "competitor"), "a file where the folder should be");
     const r = cli(["brief", "--draft", "draft.json"], { cwd: repo });
-    check("brief.unexpected error (competitor is a file) exits 1", r.code === 1 && r.err.some((l) => l.startsWith("error: unexpected failure")), () => JSON.stringify(r));
+    check("dir.brief refuses when competitor is a file (exit 2)", r.code === 2 && /^refused: competitor\/ is not a folder/.test(r.out[0] || ""), () => JSON.stringify(r));
+  }
+  // An unexpected error: the output stream fails underneath the script.
+  {
+    const repo = makeRepo();
+    putJson(repo, "draft.json", fixture("draft-full.json"));
+    const err = [];
+    const code = report.run(["brief", "--draft", "draft.json"], {
+      out: () => {
+        throw new Error("the output stream is closed");
+      },
+      err: (s) => err.push(...String(s).split("\n")),
+      cwd: repo,
+    });
+    check("brief.unexpected error (the output stream fails) exits 1", code === 1 && err.some((l) => l.startsWith("error: unexpected failure (the output stream is closed)")), () => JSON.stringify(err));
+  }
+}
+
+// ---------------------------------------------------------------- 6b. writes: temporary file + rename, re-checked folders
+
+function checkWrites() {
+  // A pre-existing output hard-linked to a file outside the repository.
+  {
+    const repo = makeRepo();
+    putJson(repo, "draft.json", fixture("draft-full.json"));
+    fs.mkdirSync(path.join(repo, "competitor", "acme-notes"), { recursive: true });
+    const external = path.join(TMP, `external-${repoCount}.txt`);
+    const before = "EXTERNAL FILE - must not change\n";
+    fs.writeFileSync(external, before);
+    const target = path.join(repo, "competitor", "acme-notes", "acme-notes.competitor.md");
+    let linked = true;
+    try {
+      fs.linkSync(external, target);
+    } catch (e) {
+      linked = false;
+      skip("write.a hard-linked output is replaced and the external file is unchanged", `cannot create a hard link here: ${e.code || e.message}`);
+    }
+    if (linked) {
+      const r = cli(["brief", "--draft", "draft.json"], { cwd: repo });
+      check("write.a hard-linked output is replaced and the external file is unchanged", r.code === 0 && fs.readFileSync(external, "utf8") === before &&
+        read(repo, "competitor/acme-notes/acme-notes.competitor.md").includes("Acme Notes - competitor brief") && fs.statSync(target).nlink === 1 && fs.statSync(external).nlink === 1, () => JSON.stringify(r));
+    }
+    const left = fs.readdirSync(path.join(repo, "competitor", "acme-notes")).filter((n) => n.endsWith(".tmp"));
+    check("write.leaves no temporary file behind", left.length === 0, () => left.join(", "));
+  }
+  // An output name that is a link (a junction on Windows) is refused, never written through.
+  {
+    const repo = makeRepo();
+    putJson(repo, "draft.json", fixture("draft-full.json"));
+    fs.mkdirSync(path.join(repo, "competitor", "acme-notes"), { recursive: true });
+    const outside = path.join(TMP, `write-outside-${repoCount}`);
+    fs.mkdirSync(outside, { recursive: true });
+    if (linkDir(outside, path.join(repo, "competitor", "acme-notes", "acme-notes.competitor.html"))) {
+      const r = cli(["brief", "--draft", "draft.json"], { cwd: repo });
+      check("write.an output name that is a link is refused (exit 2, nothing written)", r.code === 2 && /acme-notes\.competitor\.html exists and is not a regular file/.test(r.out[0] || "") &&
+        fs.readdirSync(outside).length === 0 && !exists(repo, "competitor/acme-notes/acme-notes.competitor.md"), () => JSON.stringify(r));
+    } else skip("write.an output name that is a link is refused", "cannot create a link here");
+  }
+  if (typeof confine.prepareDir !== "function" || typeof confine.writeOutputs !== "function") {
+    fail("race.a folder swapped for a link before the rename is refused and nothing lands outside", "this kit has no checked write path to test");
+    fail("race.without a swap the write lands and leaves no temporary file", "this kit has no checked write path to test");
+    return;
+  }
+  // The folder is swapped for a link between the checks and the rename.
+  {
+    const repo = makeRepo();
+    const prep = confine.prepareDir(repo, "acme-notes");
+    const outside = path.join(TMP, `race-outside-${repoCount}`);
+    fs.mkdirSync(outside, { recursive: true });
+    let swapped = false;
+    let caught = null;
+    try {
+      confine.writeOutputs(prep, ["acme-notes.competitor.md"], ["swapped\n"], {
+        beforeRename: () => {
+          fs.renameSync(prep.dir, path.join(repo, "competitor", "moved-away"));
+          swapped = linkDir(outside, prep.dir);
+        },
+      });
+    } catch (e) {
+      caught = e;
+    }
+    if (!swapped) skip("race.a folder swapped for a link before the rename is refused", "cannot create a link here");
+    else {
+      check("race.a folder swapped for a link before the rename is refused and nothing lands outside", caught instanceof confine.RefusedError && /changed while the report was being written/.test(caught.message) && fs.readdirSync(outside).length === 0,
+        () => (caught ? caught.message : "no error"));
+    }
+  }
+  // The same check, with no swap: the temporary file is renamed into place.
+  {
+    const repo = makeRepo();
+    const prep = confine.prepareDir(repo, "acme-notes");
+    const files = confine.writeOutputs(prep, ["acme-notes.compare.md"], ["plain\n"]);
+    check("race.without a swap the write lands and leaves no temporary file", fs.readFileSync(files[0], "utf8") === "plain\n" && fs.readdirSync(prep.dir).length === 1);
   }
 }
 
@@ -601,7 +984,8 @@ function checkCompare() {
   check("compare.cite drive letter is unverified", /\| C6 \|.*\*\*unverified\*\* C:.*\(a drive letter/.test(md));
   check("compare.cite .env file is unverified", /\*\*Y4\.\*\* Has secret settings\. \*\*unverified\*\* \.env \(a secrets file/.test(md));
   check("compare.cite unverified shows in html with its label", (html.match(/label label-unverified/g) || []).length === 5);
-  check("compare.their side without a fetched page is labelled inferred", /\| C3 \| Offline mode \| partial \| \*inferred, no source\* \|/.test(md) && /\| C4 \| Export \| no \| \*inferred, no source\* \|/.test(md));
+  check("compare.their status without a fetched page shows no source, not the claim", /\| C3 \| Offline mode \| — \(no source\) \| — \| partial \|/.test(md) && /\| C4 \| Export \| — \(no source\) \| — \| yes \|/.test(md), () => (md.match(/\| C[34] \|.*$/gm) || []).join(" / "));
+  check("compare.full counts the two dropped competitor statuses", r.out.some((l) => l.startsWith("rows dropped: 2")), () => JSON.stringify(r.out));
   check("compare.opening without a cite is labelled inferred", /\*\*P3\.\*\* A guess with nothing behind it\. \*inferred, no source\*/.test(md));
   check("compare.unanswered questions are listed", md.includes("*not answered* What budget and team size do you have?"));
   check("compare.next steps are marked advice only", md.includes("Advice only."));
@@ -627,6 +1011,57 @@ function checkCompare() {
   check("compare.against a brief with refused records logs them loudly and still renders", r2.code === 0 && r2.err.filter((l) => l.startsWith("REFUSED SOURCE RECORD")).length === 4 && r2.out.some((l) => l.startsWith("records refused: 4")), () => JSON.stringify(r2));
   const minMd = read(repo2, "competitor/hostile-co/hostile-co.compare.md");
   check("compare.empty sections show [GAP] markers", (minMd.match(/\[GAP — /g) || []).length === 8);
+}
+
+/** Feature rows without a fetched source, and file cites on openings, risks and next steps. */
+function checkCompareSourcing() {
+  const repo = makeRepo();
+  const draft = fixture("draft-full.json");
+  const cmp = {
+    generated_at: "2026-11-03T10:00:00Z",
+    features: [
+      { name: "Has a source", them: { status: "yes", evidence_url: "https://www.example.com/features" }, you: { status: "no", cite: "you said" } },
+      { name: "No evidence", them: { status: "yes" }, you: { status: "yes", cite: "src/editor.ts" } },
+      { name: "Not text", them: { status: "yes", evidence_url: ["https://www.example.com/"] }, you: { status: "partial", cite: "you said" } },
+      { name: "Refused URL", them: { status: "no", evidence_url: "http://169.254.169.254/latest" }, you: { status: "yes", cite: "README.md" } },
+      { name: "Not fetched", them: { status: "partial", evidence_url: "https://never-fetched.example.com/" }, you: { status: "no", cite: "you said" } },
+      { name: "Failed record", them: { status: "yes", evidence_url: "https://www.example.com/changelog" }, you: { status: "no", cite: "you said" } },
+    ],
+    openings: [{ opening: "Setup is documented in your README.", cites: ["README.md#install"] }],
+    risks: [
+      { risk: "Your editor has no tests.", cites: ["src/editor.ts:1"] },
+      { risk: "Mixed cites.", cites: ["F1", "https://www.example.com/pricing", "package.json"] },
+      { risk: "Cites a file that is not there.", cites: ["src/missing.ts"] },
+      { risk: "Cites a path that climbs out.", cites: ["../outside.txt"] },
+      { risk: "Cites a refused URL.", cites: ["http://127.0.0.1/x"] },
+    ],
+    next_steps: ["Plain advice.", { text: "Add tests for the editor.", cites: ["src/editor.ts"] }],
+  };
+  putJson(repo, "competitor/acme-notes/draft.json", draft);
+  putJson(repo, "competitor/acme-notes/compare.json", cmp);
+  const r = cli(["compare", "--draft", "competitor/acme-notes/compare.json", "--brief", "competitor/acme-notes/draft.json"], { cwd: repo });
+  const md = read(repo, "competitor/acme-notes/acme-notes.compare.md");
+  const html = read(repo, "competitor/acme-notes/acme-notes.compare.html");
+  check("compare-src.renders, exit 0", r.code === 0, () => JSON.stringify(r));
+  check("compare-src.a feature with a fetched source shows its status", md.includes("| C1 | Has a source | yes | [S3](<https://www.example.com/features>) | no | *you said* |"));
+  const noSource = [2, 3, 4, 5, 6].filter((n) => new RegExp(`\\| C${n} \\| [^|]+ \\| — \\(no source\\) \\| — \\| `).test(md));
+  check("compare-src.missing, non-text, refused, unfetched and failed evidence never show the claimed status", noSource.length === 5 && html.includes("<td>C2</td><td>No evidence</td><td>— (no source)</td>"), () => `rows with no source: ${noSource.join(",")}`);
+  check("compare-src.the user's side is kept on those rows", md.includes("| C2 | No evidence | — (no source) | — | yes | file `src/editor.ts` |") && md.includes("| C4 | Refused URL | — (no source) | — | yes | file `README.md` |"));
+  const dropped = mdSection(md, "Dropped rows") || "";
+  check("compare-src.each dropped status is logged under Dropped rows with the reason", (dropped.match(/\), their status \|/g) || []).length === 5 &&
+    /\| C4 \(Refused URL\), their status \| evidence\\_url http\\:\/\/169\.254\.169\.254\/latest: refused by the URL check/.test(dropped) && /\| C3 \(Not text\), their status \| evidence\\_url \(a list\) is not text \|/.test(dropped), () => dropped);
+  check("compare-src.stdout counts the dropped statuses", r.out.some((l) => l.startsWith("rows dropped: 5")), () => JSON.stringify(r.out));
+  check("compare-src.a risk citing a repo file renders a verified file cite", /^- \*\*R1\.\*\* Your editor has no tests\. file `src\/editor\.ts`$/m.test(md), () => (md.match(/^- \*\*R1\..*$/m) || [""])[0]);
+  check("compare-src.an opening citing a repo file renders a verified file cite", /^- \*\*P1\.\*\* Setup is documented in your README\. file `README\.md`$/m.test(md), () => (md.match(/^- \*\*P1\..*$/m) || [""])[0]);
+  check("compare-src.a risk may mix a row id, a fetched page and a file", /^- \*\*R2\.\*\* Mixed cites\. \(builds on F1\) \(sources: \[S2\]\(<https:\/\/www\.example\.com\/pricing>\)\) file `package\.json`$/m.test(md), () => (md.match(/^- \*\*R2\..*$/m) || [""])[0]);
+  check("compare-src.a missing or climbing path cite is unverified, not inferred", /^- \*\*R3\.\*\* .* \*\*unverified\*\* src\/missing\.ts \(no such file in the repository\)$/m.test(md) && /^- \*\*R4\.\*\* .* \*\*unverified\*\* \.\.\/outside\.txt \(contains/m.test(md));
+  const pathRows = (md.match(/^- \*\*(R[1-4]|P1)\..*$/gm) || []).join("\n");
+  const ignored = mdSection(md, "Ignored cites") || "";
+  check("compare-src.no path cite renders inferred, no source or refused by the URL check", !pathRows.includes("inferred, no source") && !/\| (R[1-4]|P1) \|/.test(ignored), () => `${pathRows}\n${ignored}`);
+  check("compare-src.a refused URL cite on a risk is still refused and the risk inferred", /^- \*\*R5\.\*\* Cites a refused URL\. \*inferred, no source\*$/m.test(md) && /\| R5 \| http\\:\/\/127\.0\.0\.1\/x \| refused by the URL check/.test(ignored), () => ignored);
+  check("compare-src.a next step may cite a file; a plain one gets no label", /^2\. Add tests for the editor\. file `src\/editor\.ts`$/m.test(md) && /^1\. Plain advice\.$/m.test(md), () => (md.match(/^[12]\. .*$/gm) || []).join(" / "));
+  check("compare-src.stdout counts the file cites on risks, openings and next steps", r.out.includes("your-side cites: 6 files verified, 4 you said, 2 unverified"), () => JSON.stringify(r.out));
+  assertNeutral("compare-src", md, html, allowedHrefs(draft));
 }
 
 // ---------------------------------------------------------------- 8. neutraliser units
@@ -658,6 +1093,15 @@ function checkText() {
   check("text.html link escapes the attribute", text.htmlLink("S1", "https://example.com/a'b").includes("href=\"https://example.com/a&#39;b\""));
   check("text.shown URL masks credentials", text.shownUrl("https://user:pw@example.com/x") === "https://***@example.com/x");
   check("text.clean drops control and bidi characters", text.cleanText(`a${String.fromCharCode(0x202e)}b${String.fromCharCode(7)}c\nd`) === "abc d");
+
+  // Every "://" is neutralised whatever comes before it; word-boundary schemes stay covered.
+  const glued = ["see xhttp://127.0.0.1/ now", "xftp://evil.example/", "Ahttps://evil.example/x", "_http://evil.example", "1http://evil.example", "x://evil.example", "a.b+c://evil.example", "http://a http://b"];
+  for (const p of glued) {
+    const m = text.mdText(p, true);
+    check(`text.md neutralises a glued scheme ${JSON.stringify(p)}`, !liveScheme(m), () => m);
+  }
+  check("text.md escapes each colon once", text.mdText("https://evil.example") === "https\\://evil.example" && text.mdText("xhttp://e") === "xhttp\\://e", () => `${text.mdText("https://evil.example")} ${text.mdText("xhttp://e")}`);
+  check("text.md leaves ordinary colons alone", text.mdText("Ratio 3:1, time 09:30") === "Ratio 3:1, time 09:30");
 }
 
 // ---------------------------------------------------------------- run
@@ -669,12 +1113,19 @@ function main() {
     section("guard", checkGuard);
     section("slugs", checkSlugs);
     section("check", checkCheck);
+    section("input files", checkInputFiles);
+    section("output folder", checkDirPrep);
     section("brief.full", checkBriefFull);
     section("brief.hostile", checkBriefHostile);
+    section("records", checkRecordTables);
+    section("md schemes", checkMdSchemes);
     section("brief.bad", checkBriefBad);
+    section("limits", checkLimits);
     section("templates", checkTemplates);
+    section("writes", checkWrites);
     section("links", checkLinks);
     section("compare", checkCompare);
+    section("compare sourcing", checkCompareSourcing);
     section("text", checkText);
   } finally {
     try {

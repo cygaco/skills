@@ -2,13 +2,26 @@
 "use strict";
 /**
  * report.js - the /competitor kit's only command-line tool. It checks targets
- * and URLs, and renders reports from draft files. It makes no network calls
- * and starts no processes: the research happens in Claude's own web tools.
+ * and URLs, prepares the output folder, and renders reports from draft files.
+ * It makes no network calls and starts no processes: the research happens in
+ * Claude's own web tools.
  *
- *   node report.js check --target "<name or URL>"
- *   node report.js check-url "<url>" ["<url>" ...]
+ *   node report.js check --target-file <file>     (or --target "<name or URL>")
+ *   node report.js check-url --file <file>        (or check-url "<url>" ["<url>" ...])
  *   node report.js brief --draft <draft.json> [--repo-root <dir>]
  *   node report.js compare --draft <compare.json> --brief <draft.json> [--repo-root <dir>]
+ *
+ * --target-file and --file keep text found on the web out of the shell: the
+ * target or the URLs are written to a file, and only the file's path is on the
+ * command line. The file must resolve to a regular file inside the working
+ * folder (the repository root) and be at most 64 KB. check reads its first
+ * non-blank line (at most 300 characters); check-url reads one URL per line,
+ * skipping blank lines and lines that start with #, and checks at most 200.
+ *
+ * check prints "slug: <slug>", for a URL also "url: <normalised URL>", and
+ * "dir: competitor/<slug>/" after making sure that folder and competitor/ are
+ * real folders inside the repository (created when absent, refused when one is
+ * a link or junction or resolves outside).
  *
  * Exit codes: 0 done; 2 refused, bad draft or usage error; 1 unexpected error
  * (a missing or broken template is one, and nothing is written).
@@ -18,37 +31,43 @@
  * templates/ folder next to this scripts/ folder.
  */
 
-const fs = require("fs");
 const path = require("path");
+const fs = require("fs");
 const { checkUrl } = require("./lib/guard");
 const { normalizeSlug, refuseSlug, refuseName, slugFromHost } = require("./lib/slug");
 const { mdText, htmlText, printable, shownUrl } = require("./lib/text");
 const { TemplateError, loadKit, renderTemplate } = require("./lib/templates");
 const { mdInline, htmlInline, renderSectionsMd, renderSectionsHtml } = require("./lib/blocks");
-const { RefusedError, OUT_FOLDER, prepareOutput } = require("./lib/confine");
+const { RefusedError, OUT_FOLDER, prepareDir, writeOutputs, readInputFile } = require("./lib/confine");
 const { DraftError, readJsonFile, analyzeDraft } = require("./lib/draft");
 const { BRIEF_IDS, buildBrief } = require("./lib/brief");
 const { COMPARE_IDS, COMPARE_GAP_IDS, buildCompare } = require("./lib/compare");
 
 const TEMPLATES_DIR = path.join(__dirname, "..", "templates");
+const MAX_TARGET = 300;
+const MAX_URLS = 200;
 
 const USAGE = [
   "usage:",
-  '  node report.js check --target "<name or URL>"',
-  '  node report.js check-url "<url>" ["<url>" ...]',
+  "  node report.js check --target-file <file>       (or --target \"<name or URL>\")",
+  "  node report.js check-url --file <file>          (or check-url \"<url>\" [\"<url>\" ...])",
   "  node report.js brief --draft <draft.json> [--repo-root <dir>]",
   "  node report.js compare --draft <compare.json> --brief <draft.json> [--repo-root <dir>]",
+  "<file> is a file inside this repository, at most 64 KB: check reads its first non-blank line,",
+  "check-url one URL per line (blank and # lines skipped, at most 200 URLs).",
   "exit codes: 0 done; 2 refused, bad draft or usage error; 1 unexpected error (nothing written)",
 ].join("\n");
 
 class UsageError extends Error {}
 
 const SPEC = {
-  check: { flags: ["target"], required: ["target"], positionals: false },
-  "check-url": { flags: [], required: [], positionals: true },
+  check: { flags: ["target", "target-file"], required: [], positionals: false },
+  "check-url": { flags: ["file"], required: [], positionals: true },
   brief: { flags: ["draft", "repo-root"], required: ["draft"], positionals: false },
   compare: { flags: ["draft", "brief", "repo-root"], required: ["draft", "brief"], positionals: false },
 };
+
+const given = (flags, name) => typeof flags[name] === "string" && flags[name].trim() !== "";
 
 function parseArgs(argv) {
   const [cmd, ...rest] = argv;
@@ -78,9 +97,19 @@ function parseArgs(argv) {
     }
   }
   for (const r of spec.required) {
-    if (typeof flags[r] !== "string" || !flags[r].trim()) throw new UsageError(`${cmd} needs --${r}`);
+    if (!given(flags, r)) throw new UsageError(`${cmd} needs --${r}`);
   }
-  if (spec.positionals && !positionals.length) throw new UsageError(`${cmd} needs at least one URL`);
+  if (cmd === "check") {
+    const n = ["target", "target-file"].filter((f) => flags[f] !== undefined).length;
+    if (n === 0) throw new UsageError("check needs --target-file (or --target)");
+    if (n === 2) throw new UsageError("check takes --target-file or --target, not both");
+    if (!given(flags, "target") && !given(flags, "target-file")) throw new UsageError("check needs a non-empty --target-file (or --target)");
+  }
+  if (cmd === "check-url") {
+    if (flags.file !== undefined && positionals.length) throw new UsageError("check-url takes --file or URLs, not both");
+    if (flags.file !== undefined && !given(flags, "file")) throw new UsageError("--file needs a file name");
+    if (flags.file === undefined && !positionals.length) throw new UsageError("check-url needs --file (or at least one URL)");
+  }
   return { cmd, flags, positionals };
 }
 
@@ -97,46 +126,74 @@ function repoRootOf(flags, cwd) {
 }
 
 const rel = (root, file) => path.relative(root, file).split(path.sep).join("/");
-const finish = (s) => s.replace(/\r\n/g, "\n").replace(/\n*$/, "\n");
+
+/** CRLF to LF and exactly one final newline, without a pattern over the end of the text. */
+function finish(s) {
+  const t = s.replace(/\r\n/g, "\n");
+  let end = t.length;
+  while (end > 0 && t.charCodeAt(end - 1) === 10) end--;
+  return `${t.slice(0, end)}\n`;
+}
+
+const lines = (text) => text.split(/\r\n|\n|\r/).map((l) => l.trim());
 
 // ---------------------------------------------------------------- check
 
+/** The target text: the first non-blank line of --target-file, or --target. */
+function targetText(flags, io) {
+  if (flags["target-file"] === undefined) return flags.target.trim();
+  const line = lines(readInputFile(io.cwd, flags["target-file"], "--target-file")).find(Boolean);
+  if (!line) throw new UsageError("--target-file holds no target (its first non-blank line is the target)");
+  return line;
+}
+
 function cmdCheck(flags, io) {
-  const text = flags.target.trim();
+  const text = targetText(flags, io);
+  if (text.length > MAX_TARGET) {
+    io.out(`refused: the target is longer than ${MAX_TARGET} characters`);
+    return 2;
+  }
+  const found = [];
+  let slug;
   if (/^[a-z][a-z0-9+.-]*:/i.test(text) && !/\s/.test(text)) {
     const g = checkUrl(text);
     if (!g.ok) {
       io.out(`refused: ${g.reason}`);
       return 2;
     }
-    const slug = slugFromHost(g.hostname);
-    const why = refuseSlug(slug);
-    if (why) {
-      io.out(`refused: ${why}`);
+    slug = slugFromHost(g.hostname);
+    found.push(`url: ${g.href}`);
+  } else {
+    const whyName = refuseName(text);
+    if (whyName) {
+      io.out(`refused: ${whyName}`);
       return 2;
     }
-    io.out(`slug: ${slug}`);
-    io.out(`url: ${g.href}`);
-    return 0;
+    slug = normalizeSlug(text.replace(/^www\./i, ""));
   }
-  const whyName = refuseName(text);
-  if (whyName) {
-    io.out(`refused: ${whyName}`);
-    return 2;
-  }
-  const slug = normalizeSlug(text.replace(/^www\./i, ""));
   const why = refuseSlug(slug);
   if (why) {
     io.out(`refused: ${why}`);
     return 2;
   }
+  // The folder is prepared before anything is printed, so a refusal prints no slug.
+  const prep = prepareDir(io.cwd, slug);
   io.out(`slug: ${slug}`);
+  for (const l of found) io.out(l);
+  io.out(`dir: ${prep.rel}`);
   return 0;
 }
 
-function cmdCheckUrl(positionals, io) {
+function cmdCheckUrl(flags, positionals, io) {
+  let urls = positionals;
+  let over = [];
+  if (flags.file !== undefined) {
+    const list = lines(readInputFile(io.cwd, flags.file, "--file")).filter((l) => l && !l.startsWith("#"));
+    urls = list.slice(0, MAX_URLS);
+    over = list.slice(MAX_URLS);
+  }
   let refused = 0;
-  for (const u of positionals) {
+  for (const u of urls) {
     const g = checkUrl(u);
     const shown = shownUrl(String(u)) || "(empty)";
     if (g.ok) io.out(`ok ${shown}`);
@@ -144,6 +201,10 @@ function cmdCheckUrl(positionals, io) {
       refused++;
       io.out(`refused ${shown}: ${g.reason}`);
     }
+  }
+  for (const u of over) {
+    refused++;
+    io.out(`refused ${shownUrl(u) || "(empty)"}: not checked; a file holds at most ${MAX_URLS} URLs, so check the rest in another file`);
   }
   return refused ? 2 : 0;
 }
@@ -154,14 +215,13 @@ function draftFolderNote(draftAbs, root, slug, io) {
   const folder = path.basename(path.dirname(draftAbs));
   const parent = path.dirname(path.dirname(draftAbs));
   if (path.resolve(parent) === path.resolve(root, OUT_FOLDER) && folder !== slug) {
-    io.err(`note: the draft is in ${OUT_FOLDER}/${folder}/ but its target gives the slug "${slug}"; set target.slug to "${folder}" to keep them together`);
+    io.err(`note: the draft is in ${OUT_FOLDER}/${printable(folder)}/ but its target gives the slug "${slug}"; set target.slug to "${printable(folder)}" to keep them together`);
   }
 }
 
-function writeOutputs(root, slug, names, contents) {
-  const { files } = prepareOutput(root, slug, names);
-  files.forEach((f, i) => fs.writeFileSync(f, finish(contents[i]), "utf8"));
-  return files.map((f) => rel(root, f));
+function writeReports(root, slug, names, contents) {
+  const prep = prepareDir(root, slug);
+  return writeOutputs(prep, names, contents.map(finish)).map((f) => rel(root, f));
 }
 
 function metaInline(a, counts) {
@@ -199,7 +259,7 @@ function cmdBrief(flags, io) {
     { ...common, title: htmlText(title), meta: htmlInline(meta), sections: renderSectionsHtml(model.sections) },
     kit.htmlName,
   );
-  const written = writeOutputs(root, slug, [`${slug}.competitor.md`, `${slug}.competitor.html`], [md, html]);
+  const written = writeReports(root, slug, [`${slug}.competitor.md`, `${slug}.competitor.html`], [md, html]);
   const c = model.counts;
   io.out(`wrote ${written[0]}`);
   io.out(`wrote ${written[1]}`);
@@ -233,13 +293,13 @@ function cmdCompare(flags, io) {
     { ...common, title: htmlText(title), brief_line: htmlText(model.briefLine), sections: renderSectionsHtml(model.sections) },
     kit.htmlName,
   );
-  const written = writeOutputs(root, slug, [`${slug}.compare.md`, `${slug}.compare.html`], [md, html]);
+  const written = writeReports(root, slug, [`${slug}.compare.md`, `${slug}.compare.html`], [md, html]);
   const c = model.counts;
   io.out(`wrote ${written[0]}`);
   io.out(`wrote ${written[1]}`);
   io.out(model.briefShort);
   io.out(`your-side cites: ${c.cites.file} file${c.cites.file === 1 ? "" : "s"} verified, ${c.cites.said} you said, ${c.cites.unverified} unverified`);
-  io.out(`rows dropped: ${c.dropped}`);
+  io.out(`rows dropped: ${c.dropped}${c.dropped ? " (see Dropped rows under Sources)" : ""}`);
   io.out(`records refused: ${c.refused}${c.refused ? " (in the brief; see the Sources section)" : ""}`);
   return 0;
 }
@@ -253,12 +313,12 @@ function cmdCompare(flags, io) {
  * Returns the exit code.
  */
 function run(argv, ioIn) {
-  const given = ioIn || {};
+  const ioGiven = ioIn || {};
   const io = {
-    out: given.out || ((s) => process.stdout.write(`${s}\n`)),
-    err: given.err || ((s) => process.stderr.write(`${s}\n`)),
-    cwd: given.cwd || process.cwd(),
-    templatesDir: given.templatesDir || TEMPLATES_DIR,
+    out: ioGiven.out || ((s) => process.stdout.write(`${s}\n`)),
+    err: ioGiven.err || ((s) => process.stderr.write(`${s}\n`)),
+    cwd: ioGiven.cwd || process.cwd(),
+    templatesDir: ioGiven.templatesDir || TEMPLATES_DIR,
   };
   try {
     if (argv.length === 1 && (argv[0] === "--help" || argv[0] === "-h" || argv[0] === "help")) {
@@ -267,7 +327,7 @@ function run(argv, ioIn) {
     }
     const { cmd, flags, positionals } = parseArgs(argv);
     if (cmd === "check") return cmdCheck(flags, io);
-    if (cmd === "check-url") return cmdCheckUrl(positionals, io);
+    if (cmd === "check-url") return cmdCheckUrl(flags, positionals, io);
     if (cmd === "brief") return cmdBrief(flags, io);
     return cmdCompare(flags, io);
   } catch (e) {
@@ -293,7 +353,7 @@ function run(argv, ioIn) {
   }
 }
 
-module.exports = { run, parseArgs, USAGE, TEMPLATES_DIR };
+module.exports = { run, parseArgs, USAGE, TEMPLATES_DIR, MAX_TARGET, MAX_URLS };
 
 if (require.main === module) {
   process.exitCode = run(process.argv.slice(2));

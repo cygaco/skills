@@ -7,19 +7,24 @@
  * so numeric host forms such as 2130706433, 0x7f.1, 017700000001, 127.1 or
  * fullwidth digits are judged as the dotted address they really mean.
  *
- * Refused: non-http(s) schemes; credentials; an empty host; whitespace or
+ * Refused: a URL longer than 2048 characters (refused before any pattern runs
+ * on it); non-http(s) schemes; credentials; an empty host; whitespace or
  * control characters; localhost, *.localhost, *.local, *.internal, *.home.arpa,
  * *.lan; single-label host names; IPv4 0/8, 10/8, 100.64/10, 127/8,
- * 169.254/16, 172.16/12, 192.168/16, 224/4, 240/4, 255.255.255.255; IPv6 ::,
- * ::1, fe80::/10, fec0::/10, fc00::/7, ff00::/8; and any IPv6 form that embeds a
- * refused IPv4 address (mapped ::ffff:a.b.c.d, compatible ::a.b.c.d, NAT64
- * 64:ff9b::/96, 6to4 2002::/16).
+ * 169.254/16, 172.16/12, 192.0.0/24, 192.0.2/24, 192.88.99/24, 192.168/16,
+ * 198.18/15, 198.51.100/24, 203.0.113/24, 224/4, 240/4, 255.255.255.255;
+ * IPv6 ::, ::1, fe80::/10, fec0::/10, fc00::/7, ff00::/8, 2001:db8::/32; and
+ * any IPv6 form that embeds a refused IPv4 address (mapped ::ffff:a.b.c.d,
+ * compatible ::a.b.c.d, NAT64 64:ff9b::/96, 6to4 2002::/16).
  *
  * The check sees only the URL it is given. It cannot see DNS answers (a public
  * name that resolves to a private address) or where a redirect ends up.
  */
 
 const BLOCKED_NAME_SUFFIXES = ["localhost", "local", "internal", "home.arpa", "lan"];
+
+/** The longest URL the check reads. A longer one is refused unread. */
+const MAX_URL = 2048;
 
 // [network, prefix length, reason]
 const BLOCKED_V4 = [
@@ -29,7 +34,13 @@ const BLOCKED_V4 = [
   ["127.0.0.0", 8, "IPv4 127.0.0.0/8 (loopback)"],
   ["169.254.0.0", 16, "IPv4 169.254.0.0/16 (link-local, cloud metadata)"],
   ["172.16.0.0", 12, "IPv4 172.16.0.0/12 (private)"],
+  ["192.0.0.0", 24, "IPv4 192.0.0.0/24 (protocol assignments)"],
+  ["192.0.2.0", 24, "IPv4 192.0.2.0/24 (documentation)"],
+  ["192.88.99.0", 24, "IPv4 192.88.99.0/24 (6to4 relay)"],
   ["192.168.0.0", 16, "IPv4 192.168.0.0/16 (private)"],
+  ["198.18.0.0", 15, "IPv4 198.18.0.0/15 (benchmarking)"],
+  ["198.51.100.0", 24, "IPv4 198.51.100.0/24 (documentation)"],
+  ["203.0.113.0", 24, "IPv4 203.0.113.0/24 (documentation)"],
   ["224.0.0.0", 4, "IPv4 224.0.0.0/4 (multicast)"],
   ["255.255.255.255", 32, "IPv4 255.255.255.255 (broadcast)"],
   ["240.0.0.0", 4, "IPv4 240.0.0.0/4 (reserved)"],
@@ -100,6 +111,7 @@ function blockedV6(g) {
   if ((g[0] & 0xffc0) === 0xfec0) return "IPv6 fec0::/10 (site-local)";
   if ((g[0] & 0xfe00) === 0xfc00) return "IPv6 fc00::/7 (unique local)";
   if ((g[0] & 0xff00) === 0xff00) return "IPv6 ff00::/8 (multicast)";
+  if (g[0] === 0x2001 && g[1] === 0x0db8) return "IPv6 2001:db8::/32 (documentation)";
   const embedded = [];
   if (allZero(0, 5) && g[5] === 0xffff) embedded.push(["IPv4-mapped IPv6", v4At(6)]);
   if (allZero(0, 6)) embedded.push(["IPv4-compatible IPv6", v4At(6)]);
@@ -112,17 +124,29 @@ function blockedV6(g) {
   return null;
 }
 
+/**
+ * The text without its trailing dots. The dots are counted off from the end,
+ * one pass, so no pattern runs over a long run of dots (a pattern here took
+ * quadratic time on "....a").
+ */
+function trimTrailingDots(s) {
+  let end = s.length;
+  while (end > 0 && s.charCodeAt(end - 1) === 46) end--;
+  return s.slice(0, end);
+}
+
 /** Judges a WHATWG-normalised host name. Returns a reason, or null when it is allowed. */
 function refuseHost(hostname) {
   const raw = String(hostname || "");
   if (!raw) return "empty host";
+  if (raw.length > MAX_URL) return "host name too long";
   if (raw.startsWith("[")) {
     const g = parseV6(raw.replace(/^\[|\]$/g, ""));
     if (!g) return "unreadable IPv6 address";
     return blockedV6(g);
   }
   let host = raw.toLowerCase();
-  const stripped = host.replace(/\.+$/, "");
+  const stripped = trimTrailingDots(host);
   if (!stripped) return "empty host";
   if (stripped !== host) {
     // A trailing dot can hide a numeric host from the parser: normalise again.
@@ -162,6 +186,7 @@ function hasUnsafeChar(text) {
  */
 function checkUrl(input) {
   if (typeof input !== "string") return { ok: false, reason: "not a string" };
+  if (input.length > MAX_URL) return { ok: false, reason: `URL too long (more than ${MAX_URL} characters)` };
   const text = input.trim();
   if (!text) return { ok: false, reason: "empty URL" };
   if (hasUnsafeChar(text)) {
@@ -196,6 +221,7 @@ function citeKey(input) {
 module.exports = {
   checkUrl,
   refuseHost,
+  trimTrailingDots,
   hasUnsafeChar,
   blockedV4,
   blockedV6,
@@ -203,4 +229,5 @@ module.exports = {
   citeKey,
   BLOCKED_V4,
   BLOCKED_NAME_SUFFIXES,
+  MAX_URL,
 };
