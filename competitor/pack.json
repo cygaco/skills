@@ -22,6 +22,7 @@
   "files": [
     "README.md",
     "command/competitor.md",
+    "kit/package.json",
     "kit/scripts/fixtures/compare-full.json",
     "kit/scripts/fixtures/draft-full.json",
     "kit/scripts/fixtures/draft-hostile.json",

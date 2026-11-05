@@ -34,7 +34,7 @@ Copied in with the command, under `.claude/lastmile/`:
 - `guides/`: 25 plain-language launch guides (setup, database, auth, payments, email, deployment, app stores, privacy, legal, minors, security, analytics, growth and more), with the steps only you can do marked 🔴 YOU MUST DO THIS and the ones the AI can do marked 🤖 AI CAN DO THIS.
 - `playbooks/`: 6 playbooks on default stacks, monetization patterns, the conversion funnel, a security/privacy baseline, acceptance criteria, and 2026 launch research notes.
 - `knowledge/`: a reference library on security, compliance, growth mechanics, product telemetry, admin tooling, stack selection and conversion design.
-- `scripts/` and `templates/`: the review, plan and self-check scripts, in plain Node with no dependencies.
+- `scripts/` and `templates/`: the review, plan and self-check scripts, in plain Node with no dependencies. A small `package.json` marks the kit as CommonJS, so the scripts run even in a project configured for ES modules.
 
 ## Install (copy-in)
 

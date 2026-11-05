@@ -10,6 +10,7 @@
         "control/demo/README.md",
         "control/demo/pack.json",
         "control/demo/command/demo.md",
+        "control/demo/kit/package.json",
         "control/demo/kit/guides/guide.md",
         "control/demo/kit/guides/other.md",
         "control/demo/kit/scripts/lib/util.js",
@@ -121,7 +122,20 @@
     {
       "case": "selfcheck-fail",
       "files": ["selfcheck-fail/demo/kit/scripts/selfcheck.js"],
-      "expect": { "exit": 1, "hits": [{ "at": "demo/pack.json:10", "check": "selfcheck", "what": "exit 3" }] }
+      "expect": { "exit": 1, "hits": [{ "at": "demo/pack.json:10", "check": "selfcheck", "what": "exit 3" }], "also": ["kit-module"] }
+    },
+    {
+      "case": "kit-no-cjs-marker",
+      "files": [],
+      "build": "kit-no-cjs-marker",
+      "expect": {
+        "exit": 1,
+        "hits": [
+          { "at": "demo/kit/scripts/lib/util.js:1", "check": "kit-cjs" },
+          { "at": "demo/kit/scripts/selfcheck.js:1", "check": "kit-cjs" },
+          { "at": "demo/pack.json:10", "check": "kit-module" }
+        ]
+      }
     },
     {
       "case": "install-missing",

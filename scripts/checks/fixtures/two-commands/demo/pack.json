@@ -13,6 +13,7 @@
     "README.md",
     "command/demo.md",
     "command/extra.md",
+    "kit/package.json",
     "kit/guides/guide.md",
     "kit/guides/other.md",
     "kit/scripts/lib/util.js",

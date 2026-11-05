@@ -11,6 +11,7 @@
   "files": [
     "README.md",
     "command/demo.md",
+    "kit/package.json",
     "kit/guides/guide.md",
     "kit/scripts/lib/util.js",
     "kit/scripts/selfcheck.js",

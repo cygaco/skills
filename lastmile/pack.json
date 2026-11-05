@@ -22,6 +22,7 @@
   "files": [
     "README.md",
     "command/lastmile.md",
+    "kit/package.json",
     "kit/guides/ADMIN_TOOLING_GUIDE.md",
     "kit/guides/AI_COMPLIANCE_GUIDE.md",
     "kit/guides/ANALYTICS_TELEMETRY_GUIDE.md",

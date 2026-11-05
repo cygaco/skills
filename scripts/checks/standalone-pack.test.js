@@ -719,6 +719,32 @@ function discoverPacks(root) {
   return out.sort((a, b) => (a.dirName < b.dirName ? -1 : a.dirName > b.dirName ? 1 : 0));
 }
 
+// The `type` of the nearest package.json at or above `file`, searching up to but NOT past
+// `stopDir` (the installed host root). Returns the type string, 'none' when a package.json on
+// the path declares no type, 'unreadable' when one cannot be parsed, or null when no
+// package.json sits between the file and the host root. This models Node's module-type
+// resolution: under a host whose root package.json says "type":"module", an installed .js runs
+// as CommonJS only when a "type":"commonjs" package.json governs it from INSIDE the installed
+// kit, so a nested package.json elsewhere in the kit cannot stand in for the governing one.
+function governingPackageType(file, stopDir) {
+  let dir = path.dirname(file);
+  for (;;) {
+    if (pathKey(dir) === pathKey(stopDir)) return null;
+    const pj = path.join(dir, 'package.json');
+    if (isFile(pj)) {
+      try {
+        const t = JSON.parse(fs.readFileSync(pj, 'utf8')).type;
+        return typeof t === 'string' ? t : 'none';
+      } catch {
+        return 'unreadable';
+      }
+    }
+    const parent = path.dirname(dir);
+    if (pathKey(parent) === pathKey(dir)) return null;
+    dir = parent;
+  }
+}
+
 function checkPack(pack, report, ctx) {
   const { dirName, packDir, text, pj } = pack;
   const at = (rel, line) => `${dirName}/${rel}:${line}`;
@@ -829,7 +855,7 @@ function checkPack(pack, report, ctx) {
   }
 
   if (!installOk) {
-    for (const name of ['install', 'selfcheck', 'require', 'dirname', 'd3-link']) report.check('SKIP', name, 'install is malformed (see pack-json)');
+    for (const name of ['install', 'selfcheck', 'kit-cjs', 'kit-module', 'require', 'dirname', 'd3-link']) report.check('SKIP', name, 'install is malformed (see pack-json)');
     return;
   }
 
@@ -927,6 +953,60 @@ function checkPack(pack, report, ctx) {
   }
   report.check(reqFails.length ? 'FAIL' : 'ok', 'require', `${requires} requires in ${jsFiles.length} js files (${prefixed} with a literal relative prefix)`, reqFails);
   report.check(dirFails.length ? 'FAIL' : 'ok', 'dirname', `${joins} literal path.join/resolve(__dirname, ...) chains`, dirFails);
+
+  // (g) every installed .js must run as CommonJS under a host whose root package.json is
+  // "type":"module". A .js governed only by such a host (no "type":"commonjs" package.json
+  // inside the installed kit) loads as an ES module and every require throws
+  // "require is not defined" (SK-011/SK-012). The property is resolved per file to its
+  // nearest-ancestor package.json over the INSTALLED layout, so a nested package.json
+  // elsewhere in the kit (e.g. competitor's kit/scripts/fixtures/sample-repo/package.json)
+  // cannot satisfy it. A .cjs declares its own module system and is exempt.
+  const cjsFails = [];
+  for (const abs of jsFiles) {
+    if (!/\.js$/i.test(abs)) continue; // .cjs / .mjs carry their own module system
+    const t = governingPackageType(abs, tmp);
+    if (t !== 'commonjs') {
+      const rel = installed.get(abs);
+      const reason =
+        t === null ? 'no package.json inside the kit governs it, so a "type":"module" host loads it as an ES module and require throws'
+          : t === 'module' ? 'the governing package.json inside the kit declares "type":"module", so it loads as an ES module and require throws'
+            : t === 'unreadable' ? 'the governing package.json inside the kit cannot be parsed, so its module system is undefined'
+              : 'the governing package.json inside the kit declares no "type" (CommonJS by Node default, but not pinned); a "type":"module" host or a changed default could turn it into an ES module';
+      cjsFails.push({ where: at(rel, 1), what: `installed .js: ${reason}. Ship a package.json {"type":"commonjs"} in the installed kit (e.g. kit/package.json), or rename to .cjs` });
+    }
+  }
+  report.check(cjsFails.length ? 'FAIL' : 'ok', 'kit-cjs', `${jsFiles.length} installed js files checked for a commonjs governing package.json`, cjsFails);
+
+  // (h) the runtime proof of (g) at SK-011/SK-012's grain: install the pack into a host whose
+  // root package.json is {"type":"module"} and run the pack's own selfcheck; it must exit 0.
+  if (typeof pj.selfcheck === 'string' && pj.selfcheck.trim()) {
+    const esmHost = fs.mkdtempSync(path.join(os.tmpdir(), 'standalone-pack-esm-'));
+    ctx.temps.push(esmHost);
+    fs.writeFileSync(path.join(esmHost, 'package.json'), '{ "type": "module" }\n');
+    for (const e of pj.install) {
+      const from = normRel(e.from);
+      const to = normRel(e.to);
+      if (!safeRel(from) || !safeRel(to)) continue;
+      const src = path.join(packDir, from);
+      const dest = path.join(esmHost, to);
+      if (!fs.existsSync(src)) continue;
+      if (isDir(src)) copyTree(src, dest);
+      else { fs.mkdirSync(path.dirname(dest), { recursive: true }); fs.copyFileSync(src, dest); }
+    }
+    const t0 = Date.now();
+    const r = spawnSync(pj.selfcheck, { cwd: esmHost, shell: true, encoding: 'utf8', env: baseEnv(), timeout: SELFCHECK_TIMEOUT_MS, maxBuffer: 1 << 26 });
+    const secs = ((Date.now() - t0) / 1000).toFixed(1);
+    const where = at('pack.json', lineOfText(text, '"selfcheck"'));
+    if (r.error || r.status !== 0) {
+      const why = r.error ? `did not complete (${r.error.code || 'error'})` : r.status === null ? `killed by ${r.signal}` : `exit ${r.status}`;
+      report.check('FAIL', 'kit-module', `selfcheck ${why} after ${secs}s when the pack is installed into a {"type":"module"} host (if the error is "require is not defined", the installed kit needs a package.json {"type":"commonjs"}); last 20 lines follow`, [{ where, what: `${why} inside a type:module host` }]);
+      report.tail(`${r.stdout || ''}${r.stderr || ''}`, 20);
+    } else {
+      report.check('ok', 'kit-module', `selfcheck exit 0 inside a {"type":"module"} host in ${secs}s`);
+    }
+  } else {
+    report.check('SKIP', 'kit-module', 'no selfcheck command (see pack-json)');
+  }
 
   // (e) link closure on installed Markdown, plus the pack README against the pack folder.
   const mdFiles = [...installed.keys()].filter((f) => /\.md$/i.test(f)).sort();
@@ -1212,10 +1292,27 @@ const BUILDERS = {
     const readme = path.join(d, 'README.md');
     fs.writeFileSync(readme, fs.readFileSync(readme, 'utf8').split('command/demo.md').join('command/demo/run.md'));
   },
+  'kit-no-cjs-marker'(tmp) {
+    // Remove the governing commonjs marker, and plant a nested no-type package.json deeper in
+    // the kit (competitor's sample-repo shape). The nested one must NOT satisfy kit-cjs, so the
+    // check cannot be "any package.json exists in the kit".
+    const demo = path.join(tmp, 'demo');
+    fs.rmSync(path.join(demo, 'kit', 'package.json'));
+    const decoy = path.join(demo, 'kit', 'scripts', 'fixtures', 'sample');
+    fs.mkdirSync(decoy, { recursive: true });
+    fs.writeFileSync(path.join(decoy, 'package.json'), '{}\n');
+    // Keep files-list green with a string edit (no reformat, so the selfcheck line stays put):
+    // swap the marker entry for the decoy entry.
+    const f = path.join(demo, 'pack.json');
+    const before = fs.readFileSync(f, 'utf8');
+    const after = before.replace('    "kit/package.json",\n', '    "kit/scripts/fixtures/sample/package.json",\n');
+    if (after === before) throw new Error('control pack.json does not list kit/package.json');
+    fs.writeFileSync(f, after);
+  },
 };
 
 // Every check class the self-test must prove RED at least once.
-const REQUIRED_RED = ['shape', 'hash', 'personal', 'd2-command', 'd3-link', 'require', 'dirname', 'selfcheck', 'install', 'files-list', 'install-from', 'one-command', 'git-log', 'strict', 'cross-check', 'fixture-manifest', 'packs', 'pack-allowlist', 'pack-json'];
+const REQUIRED_RED = ['shape', 'hash', 'personal', 'd2-command', 'd3-link', 'require', 'dirname', 'selfcheck', 'install', 'files-list', 'install-from', 'one-command', 'git-log', 'strict', 'cross-check', 'fixture-manifest', 'packs', 'pack-allowlist', 'pack-json', 'kit-cjs', 'kit-module'];
 
 function parseFailureLines(output) {
   const out = [];
