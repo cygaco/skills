@@ -1,0 +1,2002 @@
+[
+ {
+  "ns": "db",
+  "name": "migrate",
+  "description": "Apply pending database migrations to the local development database and report the resulting schema version.",
+  "argument_hint": "<target version>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "db",
+  "name": "seed",
+  "description": "Populate the local database with realistic fixture records for manual testing and demos.",
+  "argument_hint": "<seed set>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "db",
+  "name": "query-plan",
+  "description": "Explain how a slow SQL query executes and suggest ways to reduce its cost.",
+  "argument_hint": "<sql query>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "db",
+  "name": "index-audit",
+  "description": "Find missing, unused or duplicate indexes in the database and propose changes.",
+  "argument_hint": "<table name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "db",
+  "name": "restore",
+  "description": "Restore the production database from a chosen snapshot after explicit human confirmation of the target point.",
+  "argument_hint": "<snapshot id>",
+  "ask_first": true,
+  "model_invocable": false
+ },
+ {
+  "ns": "db",
+  "name": "drop-table",
+  "description": "Drop an obsolete table from a database after checking for dependent objects and references.",
+  "argument_hint": "<table name>",
+  "ask_first": true,
+  "model_invocable": true
+ },
+ {
+  "ns": "test",
+  "name": "unit",
+  "description": "Write or run fast isolated unit tests for a function, class or module.",
+  "argument_hint": "<file or symbol>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "test",
+  "name": "e2e",
+  "description": "Run browser-driven end-to-end scenarios that exercise complete user flows against a running app.",
+  "argument_hint": "<flow name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "test",
+  "name": "integration",
+  "description": "Run tests that verify several services or modules working together against real dependencies.",
+  "argument_hint": "<module>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "test",
+  "name": "coverage",
+  "description": "Measure test coverage and list the files and branches that lack any tests.",
+  "argument_hint": "<path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "test",
+  "name": "flaky",
+  "description": "Detect intermittently failing tests by rerunning them and report likely causes of instability.",
+  "argument_hint": "<test pattern>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "test",
+  "name": "snapshot",
+  "description": "Review and update stored snapshot files whose recorded output has changed intentionally.",
+  "argument_hint": "<test file>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "docs",
+  "name": "readme",
+  "description": "Draft or refresh a project README covering purpose, installation, usage and contribution steps.",
+  "argument_hint": "<project path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "docs",
+  "name": "api",
+  "description": "Generate reference documentation for public endpoints from route definitions and type annotations.",
+  "argument_hint": "<service name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "docs",
+  "name": "tutorial",
+  "description": "Write a step-by-step tutorial that walks a newcomer through a common task with examples.",
+  "argument_hint": "<topic>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "docs",
+  "name": "architecture",
+  "description": "Describe how the major components of a system fit together, including data flow diagrams.",
+  "argument_hint": "<system name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "docs",
+  "name": "docstrings",
+  "description": "Add missing inline documentation comments to functions and classes in the chosen files.",
+  "argument_hint": "<file path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "docs",
+  "name": "link-check",
+  "description": "Scan documentation pages for broken internal and external links and list the failures.",
+  "argument_hint": "<docs folder>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "deploy",
+  "name": "staging",
+  "description": "Deploy the current build to the staging environment and run post-deploy smoke checks.",
+  "argument_hint": "<branch>",
+  "ask_first": true,
+  "model_invocable": true
+ },
+ {
+  "ns": "deploy",
+  "name": "production",
+  "description": "Roll the approved build out to the production environment under human supervision.",
+  "argument_hint": "<version tag>",
+  "ask_first": true,
+  "model_invocable": false
+ },
+ {
+  "ns": "deploy",
+  "name": "rollback",
+  "description": "Revert a deployed service in a chosen environment to its previous healthy version.",
+  "argument_hint": "<service>",
+  "ask_first": true,
+  "model_invocable": true
+ },
+ {
+  "ns": "deploy",
+  "name": "preview",
+  "description": "Create a temporary preview environment for a pull request so reviewers can try the change.",
+  "argument_hint": "<pull request number>",
+  "ask_first": true,
+  "model_invocable": true
+ },
+ {
+  "ns": "deploy",
+  "name": "status",
+  "description": "Show which version of each service is currently running in every environment.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "deploy",
+  "name": "smoke-test",
+  "description": "Probe key health endpoints of a freshly deployed service and report any failing checks.",
+  "argument_hint": "<environment>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "git",
+  "name": "commit",
+  "description": "Stage related changes and write a clear, conventional commit message describing them.",
+  "argument_hint": "<scope>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "git",
+  "name": "branch",
+  "description": "Create a well-named working branch from the latest main and switch to it.",
+  "argument_hint": "<branch name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "git",
+  "name": "rebase",
+  "description": "Rebase the current branch onto another branch and help resolve any conflicts that appear.",
+  "argument_hint": "<base branch>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "git",
+  "name": "push",
+  "description": "Push the current local branch to the shared remote repository and set its upstream.",
+  "argument_hint": "<remote>",
+  "ask_first": true,
+  "model_invocable": true
+ },
+ {
+  "ns": "git",
+  "name": "force-push",
+  "description": "Overwrite a remote branch with local history after confirming nobody else depends on it.",
+  "argument_hint": "<branch>",
+  "ask_first": true,
+  "model_invocable": false
+ },
+ {
+  "ns": "git",
+  "name": "bisect",
+  "description": "Binary-search the commit history to find which change introduced a regression.",
+  "argument_hint": "<good commit>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "review",
+  "name": "pull-request",
+  "description": "Review a pull request diff for correctness, clarity and risk, then summarize the findings.",
+  "argument_hint": "<pull request number>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "review",
+  "name": "self",
+  "description": "Inspect your own uncommitted changes before committing and flag leftovers, mistakes and missing tests.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "review",
+  "name": "security",
+  "description": "Examine a code change specifically for vulnerabilities such as injection, unsafe input handling and leaked secrets.",
+  "argument_hint": "<diff or branch>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "review",
+  "name": "style",
+  "description": "Check a change against the team's naming and structure conventions and list deviations.",
+  "argument_hint": "<path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "review",
+  "name": "design-doc",
+  "description": "Critique a written technical proposal for gaps, unstated assumptions and unresolved trade-offs.",
+  "argument_hint": "<document link>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "review",
+  "name": "summarize-diff",
+  "description": "Condense a large diff into a short plain-language overview of what changed and why.",
+  "argument_hint": "<commit range>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "release",
+  "name": "prepare",
+  "description": "Gather merged work, bump the version and assemble a checklist for the upcoming release.",
+  "argument_hint": "<version>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "release",
+  "name": "publish",
+  "description": "Publish the tagged release artifacts to the public package registry after human sign-off.",
+  "argument_hint": "<version>",
+  "ask_first": true,
+  "model_invocable": false
+ },
+ {
+  "ns": "release",
+  "name": "tag",
+  "description": "Create an annotated version tag on the release commit and push it to the remote.",
+  "argument_hint": "<version>",
+  "ask_first": true,
+  "model_invocable": true
+ },
+ {
+  "ns": "release",
+  "name": "hotfix",
+  "description": "Cherry-pick a critical fix onto the release branch and prepare a patch version.",
+  "argument_hint": "<commit sha>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "release",
+  "name": "notes",
+  "description": "Compose customer-facing release announcement text highlighting the most important changes.",
+  "argument_hint": "<version>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "release",
+  "name": "checklist",
+  "description": "Walk through the pre-release verification steps and report which items still remain open.",
+  "argument_hint": "<version>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "deps",
+  "name": "outdated",
+  "description": "List installed dependencies that have newer versions available and classify each upgrade by risk.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "deps",
+  "name": "upgrade",
+  "description": "Update a chosen dependency to a newer version and fix the breakage it causes.",
+  "argument_hint": "<package name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "deps",
+  "name": "audit",
+  "description": "Scan dependencies for known vulnerabilities and propose the safest available fixes.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "deps",
+  "name": "unused",
+  "description": "Identify declared dependencies that no source file actually imports and can be removed.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "deps",
+  "name": "licenses",
+  "description": "Report the license of every third-party package and flag those incompatible with company policy.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "deps",
+  "name": "lockfile",
+  "description": "Regenerate a corrupted or conflicting lockfile so installs become reproducible again.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "lint",
+  "name": "fix",
+  "description": "Run the linter with automatic fixing enabled and show what was changed.",
+  "argument_hint": "<path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "lint",
+  "name": "config",
+  "description": "Adjust linter rules to match team conventions and explain each rule that was changed.",
+  "argument_hint": "<rule name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "lint",
+  "name": "format",
+  "description": "Apply the project's code formatter to selected files so whitespace and layout are consistent.",
+  "argument_hint": "<path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "lint",
+  "name": "types",
+  "description": "Run the static type checker and explain each reported error with a suggested correction.",
+  "argument_hint": "<path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "lint",
+  "name": "hooks",
+  "description": "Install pre-commit hooks that run formatting and lint checks on staged files.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "lint",
+  "name": "baseline",
+  "description": "Record existing warnings as accepted so that only newly introduced violations fail the build.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "perf",
+  "name": "profile",
+  "description": "Profile a running process to locate the functions consuming the most time or memory.",
+  "argument_hint": "<process or command>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "perf",
+  "name": "bundle-size",
+  "description": "Analyze the frontend bundle and identify the largest modules contributing to download weight.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "perf",
+  "name": "memory-leak",
+  "description": "Track down growing memory usage by comparing heap snapshots taken over a period of load.",
+  "argument_hint": "<service>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "perf",
+  "name": "slow-endpoint",
+  "description": "Investigate why a particular endpoint responds slowly and rank the contributing bottlenecks.",
+  "argument_hint": "<route>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "perf",
+  "name": "load-test",
+  "description": "Simulate heavy concurrent traffic against a service and report latency and error rates.",
+  "argument_hint": "<target url>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "perf",
+  "name": "web-vitals",
+  "description": "Measure page load responsiveness metrics for key pages and suggest front-end improvements.",
+  "argument_hint": "<page url>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "security",
+  "name": "scan",
+  "description": "Run a static analysis scan over the codebase and summarize the highest severity findings.",
+  "argument_hint": "<path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "security",
+  "name": "secrets-scan",
+  "description": "Search the repository and its history for accidentally committed passwords, tokens and keys.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "security",
+  "name": "rotate-secrets",
+  "description": "Replace compromised or expired credentials with fresh ones and update every consumer of them.",
+  "argument_hint": "<secret name>",
+  "ask_first": true,
+  "model_invocable": false
+ },
+ {
+  "ns": "security",
+  "name": "threat-model",
+  "description": "Map assets, entry points and likely attackers for a feature and list mitigations.",
+  "argument_hint": "<feature>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "security",
+  "name": "headers",
+  "description": "Check a web application's HTTP response headers and recommend stricter security settings.",
+  "argument_hint": "<site url>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "security",
+  "name": "permissions",
+  "description": "Review service accounts and roles for excess privileges and suggest least-privilege replacements.",
+  "argument_hint": "<account or role>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "api",
+  "name": "design",
+  "description": "Propose resource paths, request shapes and status codes for a new programming interface.",
+  "argument_hint": "<resource>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "api",
+  "name": "mock",
+  "description": "Spin up a mock server that returns canned responses based on an interface specification.",
+  "argument_hint": "<spec file>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "api",
+  "name": "client",
+  "description": "Generate a typed client library from an existing interface specification file.",
+  "argument_hint": "<spec file>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "api",
+  "name": "versioning",
+  "description": "Plan how to introduce a breaking interface change while keeping older consumers working.",
+  "argument_hint": "<endpoint>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "api",
+  "name": "rate-limit",
+  "description": "Add or tune request throttling rules on an endpoint and verify the limits behave correctly.",
+  "argument_hint": "<route>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "api",
+  "name": "contract-test",
+  "description": "Verify that a service still honors the contract expected by its consumers.",
+  "argument_hint": "<consumer name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ui",
+  "name": "component",
+  "description": "Scaffold a new reusable interface component with props, styles and a basic test.",
+  "argument_hint": "<component name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ui",
+  "name": "storybook",
+  "description": "Write isolated showcase stories for a component covering its main states and variants.",
+  "argument_hint": "<component name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ui",
+  "name": "responsive",
+  "description": "Check a page at several screen widths and fix layout problems that appear.",
+  "argument_hint": "<page>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ui",
+  "name": "form",
+  "description": "Build a form with field validation, error messages and accessible submit handling.",
+  "argument_hint": "<form purpose>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ui",
+  "name": "theme",
+  "description": "Add or adjust color and spacing tokens so the interface supports light and dark themes.",
+  "argument_hint": "<theme name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ui",
+  "name": "visual-diff",
+  "description": "Compare screenshots before and after a change and highlight unexpected visual differences.",
+  "argument_hint": "<page>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "data",
+  "name": "pipeline",
+  "description": "Create a scheduled job that extracts, transforms and loads records between two data stores.",
+  "argument_hint": "<pipeline name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "data",
+  "name": "clean",
+  "description": "Detect and repair duplicates, missing values and malformed entries in a dataset.",
+  "argument_hint": "<dataset path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "data",
+  "name": "export",
+  "description": "Export selected records to a CSV or JSON file with the requested columns.",
+  "argument_hint": "<query>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "data",
+  "name": "import",
+  "description": "Load records from an external file into the application's tables with validation.",
+  "argument_hint": "<file path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "data",
+  "name": "anonymize",
+  "description": "Mask personal fields in a copy of the data so it is safe for development use.",
+  "argument_hint": "<dataset>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "data",
+  "name": "quality-check",
+  "description": "Run validation rules over a dataset and report rows that violate expected constraints.",
+  "argument_hint": "<dataset>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "infra",
+  "name": "provision",
+  "description": "Define and create the cloud resources a new service needs using declarative templates.",
+  "argument_hint": "<service name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "infra",
+  "name": "plan",
+  "description": "Preview the changes an infrastructure definition would make without applying any of them.",
+  "argument_hint": "<module>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "infra",
+  "name": "teardown",
+  "description": "Delete a temporary environment and every resource it created to stop ongoing costs.",
+  "argument_hint": "<environment>",
+  "ask_first": true,
+  "model_invocable": true
+ },
+ {
+  "ns": "infra",
+  "name": "cost-report",
+  "description": "Summarize cloud spending by service and highlight the biggest recent increases.",
+  "argument_hint": "<month>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "infra",
+  "name": "scale",
+  "description": "Adjust the number or size of running instances for a service based on demand.",
+  "argument_hint": "<service>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "infra",
+  "name": "drift-check",
+  "description": "Compare live resources with their declared definitions and list manual changes that diverge.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ci",
+  "name": "debug-failure",
+  "description": "Read the log of a failed pipeline run and identify the step and cause of failure.",
+  "argument_hint": "<run id>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ci",
+  "name": "pipeline",
+  "description": "Create or modify automated pipeline definitions for building and testing on every commit.",
+  "argument_hint": "<workflow file>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ci",
+  "name": "speedup",
+  "description": "Shorten pipeline duration by parallelizing jobs and caching slow steps.",
+  "argument_hint": "<workflow name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ci",
+  "name": "retry",
+  "description": "Re-run only the failed jobs of a recent pipeline run without restarting everything.",
+  "argument_hint": "<run id>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ci",
+  "name": "matrix",
+  "description": "Configure a job matrix that tests the code across several runtime versions and platforms.",
+  "argument_hint": "<versions>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ci",
+  "name": "status-badge",
+  "description": "Add build status badges for the main branch to the project's front page.",
+  "argument_hint": "<workflow name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "issue",
+  "name": "triage",
+  "description": "Sort newly filed tickets by severity and area, and suggest an owner for each.",
+  "argument_hint": "<label or query>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "issue",
+  "name": "create",
+  "description": "Write a well-structured ticket with a clear title, reproduction steps and acceptance criteria.",
+  "argument_hint": "<summary>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "issue",
+  "name": "reproduce",
+  "description": "Attempt to reproduce a reported defect locally and document the exact steps that trigger it.",
+  "argument_hint": "<ticket id>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "issue",
+  "name": "duplicates",
+  "description": "Search existing tickets for ones that describe the same problem as a new report.",
+  "argument_hint": "<ticket id>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "issue",
+  "name": "close-stale",
+  "description": "Close tickets that have had no activity for a long time after posting a notice.",
+  "argument_hint": "<age in days>",
+  "ask_first": true,
+  "model_invocable": true
+ },
+ {
+  "ns": "issue",
+  "name": "link-commits",
+  "description": "Connect merged commits to the tickets they resolve so history stays traceable.",
+  "argument_hint": "<ticket id>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "notes",
+  "name": "meeting",
+  "description": "Turn raw meeting jottings into organized minutes with decisions and assigned action items.",
+  "argument_hint": "<meeting title>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "notes",
+  "name": "standup",
+  "description": "Compose a brief daily update from recent commits and ticket activity.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "notes",
+  "name": "decision-record",
+  "description": "Capture a technical decision with its context, alternatives considered and consequences.",
+  "argument_hint": "<decision title>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "notes",
+  "name": "retro",
+  "description": "Collect what went well and what to improve after a sprint into a retrospective summary.",
+  "argument_hint": "<sprint name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "notes",
+  "name": "journal",
+  "description": "Append a dated engineering log entry describing what was learned and tried today.",
+  "argument_hint": "<entry text>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "plan",
+  "name": "breakdown",
+  "description": "Split a large feature into small ordered tasks with rough effort estimates.",
+  "argument_hint": "<feature>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "plan",
+  "name": "estimate",
+  "description": "Give a ranged time estimate for a piece of work along with the main uncertainties.",
+  "argument_hint": "<task>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "plan",
+  "name": "roadmap",
+  "description": "Arrange upcoming initiatives into a quarterly outline based on priority and dependencies.",
+  "argument_hint": "<quarter>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "plan",
+  "name": "risk-register",
+  "description": "List what could derail a project, rate each risk and propose mitigations.",
+  "argument_hint": "<project>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "plan",
+  "name": "spike",
+  "description": "Outline a time-boxed investigation that answers an open technical question before committing to work.",
+  "argument_hint": "<question>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "refactor",
+  "name": "extract",
+  "description": "Pull repeated or tangled logic out into a well-named function or module.",
+  "argument_hint": "<file or symbol>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "refactor",
+  "name": "rename",
+  "description": "Rename a symbol consistently across the codebase, including references, tests and documentation.",
+  "argument_hint": "<old name> <new name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "refactor",
+  "name": "dead-code",
+  "description": "Find and remove functions, files and branches that nothing in the project uses.",
+  "argument_hint": "<path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "refactor",
+  "name": "simplify",
+  "description": "Reduce nesting and complexity in a function while keeping its behavior unchanged.",
+  "argument_hint": "<function>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "refactor",
+  "name": "modularize",
+  "description": "Break an oversized file into smaller cohesive modules with clear public boundaries.",
+  "argument_hint": "<file path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "refactor",
+  "name": "migrate-syntax",
+  "description": "Convert code to a newer language idiom or framework pattern across many files.",
+  "argument_hint": "<pattern>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "logs",
+  "name": "search",
+  "description": "Query application logs for entries matching a pattern within a chosen time window.",
+  "argument_hint": "<pattern>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "logs",
+  "name": "tail",
+  "description": "Stream the latest log output from a running service and highlight errors as they appear.",
+  "argument_hint": "<service>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "logs",
+  "name": "correlate",
+  "description": "Follow a single request identifier across several services to reconstruct what happened.",
+  "argument_hint": "<request id>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "logs",
+  "name": "structure",
+  "description": "Convert plain text log statements into structured entries with consistent fields.",
+  "argument_hint": "<module>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "logs",
+  "name": "noise-reduce",
+  "description": "Identify the log lines emitted most often and suggest which to downgrade or remove.",
+  "argument_hint": "<service>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "logs",
+  "name": "retention",
+  "description": "Review how long logs are kept and recommend retention periods that balance cost and need.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "cache",
+  "name": "invalidate",
+  "description": "Clear cached entries for a specific key pattern so fresh data is served.",
+  "argument_hint": "<key pattern>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "cache",
+  "name": "warm",
+  "description": "Pre-populate the cache with frequently requested items before traffic arrives.",
+  "argument_hint": "<cache name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "cache",
+  "name": "hit-rate",
+  "description": "Report how often requests are served from cache and which keys miss most.",
+  "argument_hint": "<cache name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "cache",
+  "name": "ttl-tune",
+  "description": "Recommend expiry times for cached items based on how quickly their data changes.",
+  "argument_hint": "<cache name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "cache",
+  "name": "flush-all",
+  "description": "Delete every entry in a shared cache cluster to recover from corrupted stored data.",
+  "argument_hint": "<cluster>",
+  "ask_first": true,
+  "model_invocable": true
+ },
+ {
+  "ns": "config",
+  "name": "validate",
+  "description": "Check configuration files against their expected structure and report missing or invalid settings.",
+  "argument_hint": "<config file>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "config",
+  "name": "diff",
+  "description": "Compare configuration between two environments and list the differences that matter.",
+  "argument_hint": "<env a> <env b>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "config",
+  "name": "template",
+  "description": "Produce a sample configuration file with documented defaults for a new service.",
+  "argument_hint": "<service>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "config",
+  "name": "migrate",
+  "description": "Convert old configuration keys and formats into the layout the current version expects.",
+  "argument_hint": "<config file>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "config",
+  "name": "defaults",
+  "description": "Document every tunable setting with its default value, allowed range and purpose.",
+  "argument_hint": "<module>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "config",
+  "name": "secrets-ref",
+  "description": "Replace hard-coded sensitive values in configuration with references to a secret store.",
+  "argument_hint": "<config file>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "env",
+  "name": "setup",
+  "description": "Prepare a new developer machine with the tools and dependencies the project needs.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "env",
+  "name": "doctor",
+  "description": "Diagnose why the local environment fails to build or run and suggest repairs.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "env",
+  "name": "container",
+  "description": "Create or fix a container definition so the application runs identically everywhere.",
+  "argument_hint": "<service>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "env",
+  "name": "vars",
+  "description": "List the environment variables the application reads and flag any that are unset.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "env",
+  "name": "reset",
+  "description": "Wipe local build artifacts and caches and rebuild the development environment from scratch.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "i18n",
+  "name": "extract",
+  "description": "Collect user-facing strings from source files into translation resource files.",
+  "argument_hint": "<path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "i18n",
+  "name": "translate",
+  "description": "Produce draft translations of missing strings for a chosen target language.",
+  "argument_hint": "<language code>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "i18n",
+  "name": "missing-keys",
+  "description": "Find translation keys that exist in one language but are absent from others.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "i18n",
+  "name": "plurals",
+  "description": "Fix plural and gender handling so messages read correctly in every supported language.",
+  "argument_hint": "<language code>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "i18n",
+  "name": "locale-format",
+  "description": "Ensure dates, numbers and currencies are displayed according to the reader's locale.",
+  "argument_hint": "<component>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "i18n",
+  "name": "pseudo-locale",
+  "description": "Generate an artificial locale that exposes hard-coded strings and layout overflow during testing.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "a11y",
+  "name": "audit",
+  "description": "Check a page for accessibility problems and rank them by impact on users.",
+  "argument_hint": "<page url>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "a11y",
+  "name": "contrast",
+  "description": "Measure text and background color pairs and flag those below readable contrast ratios.",
+  "argument_hint": "<stylesheet or page>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "a11y",
+  "name": "keyboard",
+  "description": "Verify every interactive element can be reached and operated using only the keyboard.",
+  "argument_hint": "<page url>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "a11y",
+  "name": "screen-reader",
+  "description": "Check labels and landmarks so assistive technology announces content in a sensible order.",
+  "argument_hint": "<component>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "a11y",
+  "name": "alt-text",
+  "description": "Write meaningful descriptions for images that currently lack text alternatives.",
+  "argument_hint": "<path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "a11y",
+  "name": "focus-order",
+  "description": "Correct the tab sequence and visible focus indicators in dialogs and complex widgets.",
+  "argument_hint": "<component>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "analytics",
+  "name": "event-plan",
+  "description": "Define which user actions to track, with consistent event names and properties.",
+  "argument_hint": "<feature>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "analytics",
+  "name": "funnel",
+  "description": "Calculate step-by-step conversion through a user journey and find the biggest drop-off.",
+  "argument_hint": "<funnel name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "analytics",
+  "name": "cohort",
+  "description": "Group users by sign-up period and compare how well each group is retained over time.",
+  "argument_hint": "<cohort definition>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "analytics",
+  "name": "experiment",
+  "description": "Analyze the results of a controlled test and state whether the difference is significant.",
+  "argument_hint": "<experiment id>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "analytics",
+  "name": "dashboard",
+  "description": "Assemble charts and tables that answer a stated product question in one view.",
+  "argument_hint": "<question>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "analytics",
+  "name": "tracking-audit",
+  "description": "Verify that tracking calls fire correctly in the app and carry the documented fields.",
+  "argument_hint": "<page or flow>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "email",
+  "name": "template",
+  "description": "Create a responsive transactional message template with placeholders for personalized content.",
+  "argument_hint": "<template name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "email",
+  "name": "preview",
+  "description": "Render a message template with sample data and show how it looks across clients.",
+  "argument_hint": "<template name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "email",
+  "name": "blast",
+  "description": "Send a campaign message to a chosen audience of real users after human approval.",
+  "argument_hint": "<campaign id>",
+  "ask_first": true,
+  "model_invocable": false
+ },
+ {
+  "ns": "email",
+  "name": "deliverability",
+  "description": "Check sender authentication records and content for issues that cause messages to land in spam.",
+  "argument_hint": "<sending domain>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "email",
+  "name": "bounce-report",
+  "description": "Summarize undeliverable addresses and complaints from recent sends and suggest list cleanup.",
+  "argument_hint": "<date range>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "email",
+  "name": "notify-users",
+  "description": "Send a notice to affected users about an incident or planned maintenance window.",
+  "argument_hint": "<segment>",
+  "ask_first": true,
+  "model_invocable": true
+ },
+ {
+  "ns": "auth",
+  "name": "login-flow",
+  "description": "Implement or repair the sign-in sequence including sessions, redirects and error handling.",
+  "argument_hint": "<method>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "auth",
+  "name": "roles",
+  "description": "Define permission roles and map them to the actions each role may perform.",
+  "argument_hint": "<role name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "auth",
+  "name": "password-reset",
+  "description": "Build a secure account recovery flow with expiring links and rate limits.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "auth",
+  "name": "mfa",
+  "description": "Add a second verification step to sign-in using one-time codes or hardware keys.",
+  "argument_hint": "<factor type>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "auth",
+  "name": "token-debug",
+  "description": "Decode an access token and explain why a request was rejected as unauthorized.",
+  "argument_hint": "<token>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "auth",
+  "name": "session-audit",
+  "description": "Review how sessions are stored, expired and revoked, and flag weaknesses.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "backup",
+  "name": "create",
+  "description": "Take an on-demand backup of a chosen data store and record where it is kept.",
+  "argument_hint": "<data store>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "backup",
+  "name": "verify",
+  "description": "Test that a recent backup can actually be read and restored into a scratch location.",
+  "argument_hint": "<backup id>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "backup",
+  "name": "schedule",
+  "description": "Set up recurring backup jobs with retention rules and failure alerts.",
+  "argument_hint": "<frequency>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "backup",
+  "name": "list",
+  "description": "Show available backups with their sizes, ages and the systems they belong to.",
+  "argument_hint": "<data store>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "backup",
+  "name": "prune",
+  "description": "Delete backups that exceed the retention policy to reclaim storage space.",
+  "argument_hint": "<retention days>",
+  "ask_first": true,
+  "model_invocable": true
+ },
+ {
+  "ns": "backup",
+  "name": "restore-test",
+  "description": "Rehearse a full recovery drill in an isolated environment and time each step.",
+  "argument_hint": "<system>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "bench",
+  "name": "micro",
+  "description": "Write a small benchmark that times a single function over many iterations.",
+  "argument_hint": "<function>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "bench",
+  "name": "compare",
+  "description": "Run the same benchmark on two commits and report any meaningful speed change.",
+  "argument_hint": "<commit a> <commit b>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "bench",
+  "name": "baseline",
+  "description": "Record current benchmark results as the reference point for future regression checks.",
+  "argument_hint": "<suite>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "bench",
+  "name": "report",
+  "description": "Format benchmark output into a readable table with trends over recent runs.",
+  "argument_hint": "<suite>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "bench",
+  "name": "regression-gate",
+  "description": "Fail a pipeline when benchmark results worsen beyond an agreed threshold.",
+  "argument_hint": "<threshold percent>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "build",
+  "name": "compile",
+  "description": "Build the project from source and summarize any compiler errors and warnings.",
+  "argument_hint": "<target>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "build",
+  "name": "clean",
+  "description": "Remove generated output directories and temporary files left by previous builds.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "build",
+  "name": "incremental",
+  "description": "Configure the toolchain so unchanged modules are not rebuilt on every run.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "build",
+  "name": "bundle",
+  "description": "Package the application into optimized production assets with minified code and hashed names.",
+  "argument_hint": "<entry point>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "build",
+  "name": "docker-image",
+  "description": "Build a container image for the service and report its size and layers.",
+  "argument_hint": "<service>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "build",
+  "name": "reproducible",
+  "description": "Check that building twice from the same source yields identical output artifacts.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "changelog",
+  "name": "generate",
+  "description": "Compile a list of changes since the last version from merged pull requests.",
+  "argument_hint": "<since tag>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "changelog",
+  "name": "categorize",
+  "description": "Group unreleased changes into added, changed, fixed and removed sections.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "changelog",
+  "name": "breaking",
+  "description": "Highlight changes that break compatibility and write migration guidance for each one.",
+  "argument_hint": "<version>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "changelog",
+  "name": "entry",
+  "description": "Add a single well-worded line describing a change to the unreleased section.",
+  "argument_hint": "<change summary>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "changelog",
+  "name": "credits",
+  "description": "List contributors who helped with a release so they can be thanked.",
+  "argument_hint": "<version>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "design",
+  "name": "tokens",
+  "description": "Define shared color, type and spacing values that every interface surface will reuse.",
+  "argument_hint": "<token group>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "design",
+  "name": "wireframe",
+  "description": "Sketch a simple layout for a new screen showing structure without visual polish.",
+  "argument_hint": "<screen>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "design",
+  "name": "handoff",
+  "description": "Prepare specifications and assets so engineers can implement a mockup accurately.",
+  "argument_hint": "<mockup name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "design",
+  "name": "icon-set",
+  "description": "Audit icons for inconsistent sizing and style and propose a unified set.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "design",
+  "name": "copy-edit",
+  "description": "Improve the wording of interface labels and messages so they are short and clear.",
+  "argument_hint": "<screen or file>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "design",
+  "name": "user-flow",
+  "description": "Draw the steps a user takes to complete a goal and mark friction points.",
+  "argument_hint": "<goal>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "flags",
+  "name": "create",
+  "description": "Define a new feature toggle with a default state, owner and planned removal date.",
+  "argument_hint": "<flag name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "flags",
+  "name": "rollout",
+  "description": "Gradually enable a toggle for a growing percentage of users and watch error rates.",
+  "argument_hint": "<flag name> <percent>",
+  "ask_first": true,
+  "model_invocable": true
+ },
+ {
+  "ns": "flags",
+  "name": "cleanup",
+  "description": "Remove toggles that are fully enabled and delete the code paths they guarded.",
+  "argument_hint": "<flag name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "flags",
+  "name": "audit",
+  "description": "List all toggles with their age, owner and current state to find forgotten ones.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "flags",
+  "name": "kill-switch",
+  "description": "Immediately disable a risky feature in production using its emergency toggle.",
+  "argument_hint": "<flag name>",
+  "ask_first": true,
+  "model_invocable": true
+ },
+ {
+  "ns": "onboarding",
+  "name": "checklist",
+  "description": "Produce a first-week task list for a new engineer joining the team.",
+  "argument_hint": "<role>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "onboarding",
+  "name": "codebase-tour",
+  "description": "Explain the repository layout, key modules and where to start reading for newcomers.",
+  "argument_hint": "<repo path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "onboarding",
+  "name": "first-issue",
+  "description": "Pick a small well-scoped ticket suitable as a newcomer's first contribution.",
+  "argument_hint": "<skill area>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "onboarding",
+  "name": "glossary",
+  "description": "Compile project-specific terms and acronyms with plain explanations for new members.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "onboarding",
+  "name": "access-request",
+  "description": "Draft the list of accounts and permissions a new teammate needs and who approves them.",
+  "argument_hint": "<teammate role>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "support",
+  "name": "reply",
+  "description": "Draft a courteous answer to a customer question using known product behavior.",
+  "argument_hint": "<ticket id>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "support",
+  "name": "escalate",
+  "description": "Package a customer problem with logs and steps so engineering can investigate it quickly.",
+  "argument_hint": "<ticket id>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "support",
+  "name": "faq",
+  "description": "Turn frequently asked questions into concise help center articles.",
+  "argument_hint": "<topic>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "support",
+  "name": "incident-update",
+  "description": "Write a clear status page message describing an ongoing outage and next steps.",
+  "argument_hint": "<incident id>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "support",
+  "name": "sentiment",
+  "description": "Summarize recurring complaints and praise across recent customer conversations.",
+  "argument_hint": "<date range>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "support",
+  "name": "macro",
+  "description": "Create a reusable canned response for a common request with placeholders.",
+  "argument_hint": "<request type>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "metrics",
+  "name": "slo",
+  "description": "Define service level objectives and the indicators used to measure them.",
+  "argument_hint": "<service>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "metrics",
+  "name": "alert-rule",
+  "description": "Write a monitoring alert that fires on meaningful symptoms without excessive noise.",
+  "argument_hint": "<metric>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "metrics",
+  "name": "dashboard",
+  "description": "Build an operational view of a service's health with rate, error and latency panels.",
+  "argument_hint": "<service>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "metrics",
+  "name": "instrument",
+  "description": "Add counters and timers to code paths so their behavior becomes observable.",
+  "argument_hint": "<module>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "metrics",
+  "name": "capacity",
+  "description": "Project resource usage growth and say when current capacity will run out.",
+  "argument_hint": "<resource>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "metrics",
+  "name": "postmortem",
+  "description": "Assemble a blameless incident write-up using timeline data and measured impact.",
+  "argument_hint": "<incident id>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "schema",
+  "name": "design",
+  "description": "Propose tables, columns and relationships for a new domain model with sensible constraints.",
+  "argument_hint": "<domain>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "schema",
+  "name": "diff",
+  "description": "Compare two schema versions and list added, removed and altered structures.",
+  "argument_hint": "<version a> <version b>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "schema",
+  "name": "json-schema",
+  "description": "Write a validation schema for a JSON document based on example payloads.",
+  "argument_hint": "<sample file>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "schema",
+  "name": "erd",
+  "description": "Generate an entity relationship diagram from the current database structure.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "schema",
+  "name": "backfill",
+  "description": "Plan and write a safe job that fills a newly added column for existing rows.",
+  "argument_hint": "<column>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "schema",
+  "name": "deprecate",
+  "description": "Phase out an unused column or field with a staged plan that avoids breaking readers.",
+  "argument_hint": "<field name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "mobile",
+  "name": "build-app",
+  "description": "Create a signed debug build of the mobile app for a chosen platform.",
+  "argument_hint": "<platform>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "mobile",
+  "name": "emulator",
+  "description": "Launch a simulated device with a given screen size and install the latest build.",
+  "argument_hint": "<device profile>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "mobile",
+  "name": "permissions",
+  "description": "Review requested device permissions and remove any the app does not truly need.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "mobile",
+  "name": "store-submit",
+  "description": "Submit the release build to the app store for review with listing details.",
+  "argument_hint": "<build number>",
+  "ask_first": true,
+  "model_invocable": true
+ },
+ {
+  "ns": "mobile",
+  "name": "crash-report",
+  "description": "Group recent crashes by cause and point to the code most likely responsible.",
+  "argument_hint": "<app version>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "mobile",
+  "name": "offline-mode",
+  "description": "Make screens work without connectivity by caching data and queuing outgoing changes.",
+  "argument_hint": "<screen>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "queue",
+  "name": "consumer-lag",
+  "description": "Measure how far each consumer group trails the newest messages and flag stalled consumers.",
+  "argument_hint": "<topic>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "queue",
+  "name": "dead-letter",
+  "description": "List messages parked in the dead-letter queue and group them by failure reason.",
+  "argument_hint": "<queue name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "queue",
+  "name": "retry-policy",
+  "description": "Tune redelivery attempts and backoff intervals for a consumer so transient errors recover on their own.",
+  "argument_hint": "<consumer>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "queue",
+  "name": "topic-create",
+  "description": "Define a new topic with partition count, retention period and access settings.",
+  "argument_hint": "<topic name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "queue",
+  "name": "replay",
+  "description": "Re-deliver a range of past messages to a consumer in a sandbox to debug how it handled them.",
+  "argument_hint": "<offset range>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "queue",
+  "name": "throughput",
+  "description": "Report messages published and consumed per second over a time window and highlight bottlenecks.",
+  "argument_hint": "<topic>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "seo",
+  "name": "meta-tags",
+  "description": "Write page titles and meta descriptions that summarize content within search result length limits.",
+  "argument_hint": "<page path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "seo",
+  "name": "sitemap",
+  "description": "Generate a sitemap listing every public page with its last modified date.",
+  "argument_hint": "",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "seo",
+  "name": "structured-markup",
+  "description": "Add machine-readable markup describing products, articles or events on a page.",
+  "argument_hint": "<page path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "seo",
+  "name": "crawl-errors",
+  "description": "Find pages that crawlers cannot reach because of redirect loops, blocking rules or server errors.",
+  "argument_hint": "<site url>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "seo",
+  "name": "canonical",
+  "description": "Resolve duplicate pages by choosing canonical addresses and adding the matching tags.",
+  "argument_hint": "<url pattern>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "seo",
+  "name": "keyword-gap",
+  "description": "Compare the search phrases a page targets against what its audience actually searches for.",
+  "argument_hint": "<page path>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ml",
+  "name": "train",
+  "description": "Train a model on a prepared dataset with the chosen hyperparameters and save the resulting checkpoint.",
+  "argument_hint": "<config file>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ml",
+  "name": "evaluate",
+  "description": "Score a trained model on a held-out set and report accuracy along with an error breakdown.",
+  "argument_hint": "<model checkpoint>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ml",
+  "name": "feature-store",
+  "description": "Register computed features so training and serving read identical values.",
+  "argument_hint": "<feature group>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ml",
+  "name": "drift-monitor",
+  "description": "Detect when live input distributions shift away from the data a model was trained on.",
+  "argument_hint": "<model name>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ml",
+  "name": "label-review",
+  "description": "Sample labeled examples and flag likely annotation mistakes for correction.",
+  "argument_hint": "<dataset>",
+  "ask_first": false,
+  "model_invocable": true
+ },
+ {
+  "ns": "ml",
+  "name": "serve",
+  "description": "Package a trained model behind a prediction endpoint with request batching and health checks.",
+  "argument_hint": "<model name>",
+  "ask_first": false,
+  "model_invocable": true
+ }
+]

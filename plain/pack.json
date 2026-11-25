@@ -1,0 +1,43 @@
+{
+  "name": "plain",
+  "version": "0.1.0",
+  "description": "Run your skills by saying what you want, typed or dictated, without the slash or the exact name. A local router with a once-per-session skill map, a name line and a high-confidence hint line; no model calls of its own.",
+  "commands": [
+    "/plain"
+  ],
+  "install": [
+    {
+      "from": "command/plain.md",
+      "to": ".claude/commands/plain.md"
+    },
+    {
+      "from": "kit",
+      "to": ".claude/plain"
+    }
+  ],
+  "selfcheck": "node .claude/plain/scripts/selfcheck.js",
+  "requires": {
+    "node": ">=20"
+  },
+  "files": [
+    "README.md",
+    "command/plain.md",
+    "kit/fixtures/catalog.json",
+    "kit/fixtures/prompts.json",
+    "kit/package.json",
+    "kit/scripts/hook-prompt.js",
+    "kit/scripts/hook-session.js",
+    "kit/scripts/hook-skill.js",
+    "kit/scripts/lib/catalog.js",
+    "kit/scripts/lib/core.js",
+    "kit/scripts/lib/map.js",
+    "kit/scripts/lib/misslog.js",
+    "kit/scripts/lib/names.js",
+    "kit/scripts/lib/ranker.js",
+    "kit/scripts/lib/safefs.js",
+    "kit/scripts/lib/text.js",
+    "kit/scripts/selfcheck.js",
+    "kit/scripts/setup.js",
+    "pack.json"
+  ]
+}

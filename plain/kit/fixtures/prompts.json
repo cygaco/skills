@@ -1,0 +1,518 @@
+{
+ "intent": [
+  {
+   "text": "bring my local dev instance up to date with the pending schema change scripts and tell me what version it lands on",
+   "skill": "db:migrate",
+   "args": ""
+  },
+  {
+   "text": "drive a real browser through all the main user journeys against the running app and tell me what breaks",
+   "skill": "test:e2e",
+   "args": ""
+  },
+  {
+   "text": "Draft the intro file at the root of packages/cli covering what it's for, how to install it, how to use it and how to contribute.",
+   "skill": "docs:readme",
+   "args": "packages/cli"
+  },
+  {
+   "text": "payments in prod has been broken since this morning, put it back on the last healthy version",
+   "skill": "deploy:rollback",
+   "args": "payments"
+  },
+  {
+   "text": "replay my commits on top of develop and help me sort out any conflicts",
+   "skill": "git:rebase",
+   "args": "develop"
+  },
+  {
+   "text": "look over PR 512 for correctness and risk, summarize what you find",
+   "skill": "review:pull-request",
+   "args": "512"
+  },
+  {
+   "text": "Cherry-pick 9f8e7d6 onto the 2.x maintenance line and get a patch version ready, it's an urgent correction.",
+   "skill": "release:hotfix",
+   "args": "9f8e7d6"
+  },
+  {
+   "text": "i need to know which of our installed packages have newer versions out and how risky each bump is",
+   "skill": "deps:outdated",
+   "args": ""
+  },
+  {
+   "text": "can you set it up so formatting and style checks run automatically on staged files right before every commit",
+   "skill": "lint:hooks",
+   "args": ""
+  },
+  {
+   "text": "RAM in the notifications service keeps climbing under load. Compare heap captures over time and find what's retaining objects.",
+   "skill": "perf:memory-leak",
+   "args": "notifications"
+  },
+  {
+   "text": "can you search the repo and its whole history for accidentally committed passwords, tokens or private keys",
+   "skill": "security:secrets-scan",
+   "args": ""
+  },
+  {
+   "text": "stand up a fake server that returns canned responses from our interface spec so the frontend folks can work without the backend",
+   "skill": "api:mock",
+   "args": ""
+  },
+  {
+   "text": "compare before and after screenshots of the dashboard page and point out anything that changed unexpectedly",
+   "skill": "ui:visual-diff",
+   "args": "dashboard"
+  },
+  {
+   "text": "load uploads/products.json into our tables, validate each row",
+   "skill": "data:import",
+   "args": "uploads/products.json"
+  },
+  {
+   "text": "Compare what's actually running in the cloud account against our declared templates and list any manual changes that diverge.",
+   "skill": "infra:drift-check",
+   "args": ""
+  },
+  {
+   "text": "Set up the workflow so every push runs on runtime versions 3.10, 3.11 and 3.12 across all the platforms we support.",
+   "skill": "ci:matrix",
+   "args": "3.10, 3.11 and 3.12"
+  },
+  {
+   "text": "write my daily update from yesterdays commits and ticket activity",
+   "skill": "notes:standup",
+   "args": ""
+  },
+  {
+   "text": "Summarize what went well and what we should improve from the sprint that just ended.",
+   "skill": "notes:retro",
+   "args": ""
+  },
+  {
+   "text": "Split the multi-currency checkout feature into small ordered tasks with rough effort sizes.",
+   "skill": "plan:breakdown",
+   "args": "multi-currency checkout"
+  },
+  {
+   "text": "i need the nested ifs in calculateDiscount flattened, behavior has to stay identical",
+   "skill": "refactor:simplify",
+   "args": "calculateDiscount"
+  },
+  {
+   "text": "app.ts is 3000 lines, can you split it into smaller cohesive files with clear public boundaries",
+   "skill": "refactor:modularize",
+   "args": "app.ts"
+  },
+  {
+   "text": "follow request id 7f3a91c across all the services and piece together what happened to it",
+   "skill": "logs:correlate",
+   "args": "7f3a91c"
+  },
+  {
+   "text": "stream the latest output from the checkout service live and highlight errors as they show up",
+   "skill": "logs:tail",
+   "args": "checkout"
+  },
+  {
+   "text": "Clear stored entries matching user:42:* so fresh profile info is served.",
+   "skill": "cache:invalidate",
+   "args": "user:42:*"
+  },
+  {
+   "text": "recommend expiry times for the stuff we keep in our key-value layer based on how often the underlying records actually change",
+   "skill": "cache:ttl-tune",
+   "args": ""
+  },
+  {
+   "text": "check our settings files against their expected structure and report anything missing or malformed",
+   "skill": "config:validate",
+   "args": ""
+  },
+  {
+   "text": "compare the settings between staging and production and tell me which mismatches actually matter",
+   "skill": "config:diff",
+   "args": "staging and production"
+  },
+  {
+   "text": "my local setup wont start since yesterdays pull figure out whats wrong and suggest repairs",
+   "skill": "env:doctor",
+   "args": ""
+  },
+  {
+   "text": "Messages like \"1 items\" read wrong in pl. Fix the one-vs-many handling so counts read correctly there.",
+   "skill": "i18n:plurals",
+   "args": "pl"
+  },
+  {
+   "text": "which translation entries exist in english but are absent from the french and spanish files",
+   "skill": "i18n:missing-keys",
+   "args": ""
+  },
+  {
+   "text": "go through our color pairs and flag any text that's too faint against its background",
+   "skill": "a11y:contrast",
+   "args": ""
+  },
+  {
+   "text": "write meaningful descriptions for all the images on the site that dont have any",
+   "skill": "a11y:alt-text",
+   "args": ""
+  },
+  {
+   "text": "Compute step-by-step conversion through the trial-to-paid journey and tell me where people drop off the most.",
+   "skill": "analytics:funnel",
+   "args": "trial-to-paid"
+  },
+  {
+   "text": "did a/b run exp-204 actually move conversion or is the gap just noise",
+   "skill": "analytics:experiment",
+   "args": "exp-204"
+  },
+  {
+   "text": "Our messages from mail.example.test keep landing in spam. Check the SPF, DKIM and DMARC records and the content.",
+   "skill": "email:deliverability",
+   "args": "mail.example.test"
+  },
+  {
+   "text": "decode this jwt and tell me why the request got a 401: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI0MiJ9.c2lnbmF0dXJl",
+   "skill": "auth:token-debug",
+   "args": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI0MiJ9.c2lnbmF0dXJl"
+  },
+  {
+   "text": "Build an account recovery flow for people who forgot their credentials, with expiring links and rate limits.",
+   "skill": "auth:password-reset",
+   "args": ""
+  },
+  {
+   "text": "set up recurring copies of our primary datastore with retention rules and alerts when one fails",
+   "skill": "backup:schedule",
+   "args": ""
+  },
+  {
+   "text": "write a tiny timing harness that runs slugify a million times and reports nanoseconds per call",
+   "skill": "bench:micro",
+   "args": "slugify"
+  },
+  {
+   "text": "Check whether producing the artifacts twice from the same source gives byte-identical output.",
+   "skill": "build:reproducible",
+   "args": ""
+  },
+  {
+   "text": "list everyone who pitched in on the upcoming version so we can thank them",
+   "skill": "changelog:credits",
+   "args": ""
+  },
+  {
+   "text": "sketch a rough layout for the new settings screen, just structure, no visual polish",
+   "skill": "design:wireframe",
+   "args": "settings screen"
+  },
+  {
+   "text": "turn on new_search_ui for ten percent of users and keep an eye on error rates",
+   "skill": "flags:rollout",
+   "args": "new_search_ui ten percent"
+  },
+  {
+   "text": "Compile our project-specific terms and acronyms with plain explanations for new hires.",
+   "skill": "onboarding:glossary",
+   "args": ""
+  },
+  {
+   "text": "write a status page message about the outage happening right now and what we're doing next",
+   "skill": "support:incident-update",
+   "args": ""
+  },
+  {
+   "text": "Assemble a blameless write-up for INC-91 using the timeline and measured impact.",
+   "skill": "metrics:postmortem",
+   "args": "INC-91"
+  },
+  {
+   "text": "write a safe job that populates the new last_login_at column for all existing rows",
+   "skill": "schema:backfill",
+   "args": "last_login_at"
+  },
+  {
+   "text": "make the phone app's main screens usable with no connectivity, keep local copies and queue outgoing changes",
+   "skill": "mobile:offline-mode",
+   "args": ""
+  }
+ ],
+ "named": [
+  {
+   "text": "db migrate up to version thirty one",
+   "skill": "db:migrate",
+   "args": "thirty one"
+  },
+  {
+   "text": "docs readme for the cli package",
+   "skill": "docs:readme",
+   "args": "the cli package"
+  },
+  {
+   "text": "deploy staging feature search v two",
+   "skill": "deploy:staging",
+   "args": "feature search v two"
+  },
+  {
+   "text": "review pull request four eighteen",
+   "skill": "review:pull-request",
+   "args": "four eighteen"
+  },
+  {
+   "text": "deps outdated",
+   "skill": "deps:outdated",
+   "args": ""
+  },
+  {
+   "text": "perf load test against the search page on pre prod",
+   "skill": "perf:load-test",
+   "args": "the search page on pre prod"
+  },
+  {
+   "text": "ui storybook for the date picker",
+   "skill": "ui:storybook",
+   "args": "the date picker"
+  },
+  {
+   "text": "infra drift check",
+   "skill": "infra:drift-check",
+   "args": ""
+  },
+  {
+   "text": "issue triage everything labeled needs attention",
+   "skill": "issue:triage",
+   "args": "needs attention"
+  },
+  {
+   "text": "plan spike can we drop the message broker entirely",
+   "skill": "plan:spike",
+   "args": "can we drop the message broker entirely"
+  },
+  {
+   "text": "refactor rename user id to account id",
+   "skill": "refactor:rename",
+   "args": "user id to account id"
+  },
+  {
+   "text": "logs correlate request a b c one two three",
+   "skill": "logs:correlate",
+   "args": "a b c one two three"
+  },
+  {
+   "text": "cache hit rate on the sessions cache",
+   "skill": "cache:hit-rate",
+   "args": "the sessions cache"
+  },
+  {
+   "text": "config diff staging production",
+   "skill": "config:diff",
+   "args": "staging production"
+  },
+  {
+   "text": "hey run env doctor",
+   "skill": "env:doctor",
+   "args": ""
+  },
+  {
+   "text": "a11y contrast on the marketing stylesheet",
+   "skill": "a11y:contrast",
+   "args": "the marketing stylesheet"
+  },
+  {
+   "text": "changelog breaking for version four",
+   "skill": "changelog:breaking",
+   "args": "version four"
+  },
+  {
+   "text": "flags rollout new checkout twenty five percent",
+   "skill": "flags:rollout",
+   "args": "new checkout twenty five percent"
+  },
+  {
+   "text": "review colon self before i commit",
+   "skill": "review:self",
+   "args": ""
+  },
+  {
+   "text": "db drop table legacy sessions",
+   "skill": "db:drop-table",
+   "args": "legacy sessions"
+  },
+  {
+   "text": "infra teardown the demo environment",
+   "skill": "infra:teardown",
+   "args": "the demo environment"
+  },
+  {
+   "text": "backup prune anything older than ninety days",
+   "skill": "backup:prune",
+   "args": "ninety days"
+  },
+  {
+   "text": "db restore from snapshot s two zero four",
+   "skill": "db:restore",
+   "args": "s two zero four"
+  },
+  {
+   "text": "deploy production v four point one point zero",
+   "skill": "deploy:production",
+   "args": "v four point one point zero"
+  }
+ ],
+ "ordinary": [
+  {
+   "text": "what does the down() method in a migration actually do if we never roll back?"
+  },
+  {
+   "text": "yes do it"
+  },
+  {
+   "text": "what's the difference between toEqual and toBe in our test assertions?"
+  },
+  {
+   "text": "explain what a covering index is"
+  },
+  {
+   "text": "no, keep the original variable name"
+  },
+  {
+   "text": "why does the deploy hook in scripts/post-deploy.sh use exec instead of spawning a subshell?"
+  },
+  {
+   "text": "getting ECONNREFUSED 127.0.0.1:6379 when the app boots, what does that mean?"
+  },
+  {
+   "text": "thanks, that fixed it"
+  },
+  {
+   "text": "what does the --frozen-lockfile option do?"
+  },
+  {
+   "text": "why does it say detached HEAD after I checked out a tag?"
+  },
+  {
+   "text": "can you remind me what the staging url was that you mentioned earlier?"
+  },
+  {
+   "text": "that migration you wrote earlier, why did you make the column nullable?"
+  },
+  {
+   "text": "why is the regex /^\\d+$/ rejecting the string '12 '?"
+  },
+  {
+   "text": "what happens when two requests miss the cache at the same moment, is that what people call a thundering herd?"
+  },
+  {
+   "text": "nah, leave the logs as they are"
+  },
+  {
+   "text": "does the backup job in ops/crontab run in UTC or local time?"
+  },
+  {
+   "text": "what's the healthz route in server.ts for?"
+  },
+  {
+   "text": "I'm seeing relation \"users\" does not exist when the app starts, could the schema name in the connection string be wrong?"
+  },
+  {
+   "text": "how does the retry decorator in http/retry.py decide how long to back off?"
+  },
+  {
+   "text": "why do we pin the container base image by digest instead of by tag?"
+  },
+  {
+   "text": "sounds good, but use snake_case for the new keys"
+  },
+  {
+   "text": "what's the difference between a smoke test and a sanity test?"
+  },
+  {
+   "text": "how does tree shaking actually reduce bundle size?"
+  },
+  {
+   "text": "is it safe to keep the refresh token in localStorage?"
+  },
+  {
+   "text": "why does our env loader read .env.local before .env?"
+  },
+  {
+   "text": "what does fast-forward only mean when you pull a branch?"
+  },
+  {
+   "text": "the package manager says unable to resolve dependency tree, what does that error actually mean?"
+  },
+  {
+   "text": "where in the code do we set the max pool size for database connections?"
+  },
+  {
+   "text": "do test files in this repo end in .spec or .test? I want to match the convention"
+  },
+  {
+   "text": "change formatPrice so it rounds half up instead of using banker's rounding"
+  },
+  {
+   "text": "why does the hydration warning only show up in production builds?"
+  },
+  {
+   "text": "perfect, thanks"
+  },
+  {
+   "text": "explain idempotency keys like I'm new to payments"
+  },
+  {
+   "text": "what release cadence would you recommend for a team of four?"
+  },
+  {
+   "text": "does deploy.sh assume the region is set somewhere else?"
+  },
+  {
+   "text": "what does a composite index on (tenant_id, created_at) buy us compared to two separate ones?"
+  },
+  {
+   "text": "stop, don't run anything yet"
+  },
+  {
+   "text": "why did you use a Map instead of a plain object for the lookup in that last change?"
+  },
+  {
+   "text": "in the flags module, what happens when a flag name isn't found, does it default to on or off?"
+  },
+  {
+   "text": "what's the difference between an access token and an id token?"
+  },
+  {
+   "text": "after I moved the file I get cannot find module './config/defaults', what should the import path be now?"
+  },
+  {
+   "text": "should snapshot files be committed or ignored? what's your take?"
+  },
+  {
+   "text": "explain what a dead letter queue is"
+  },
+  {
+   "text": "how is the pagination cursor encoded in listOrders?"
+  },
+  {
+   "text": "do it the second way you suggested"
+  },
+  {
+   "text": "what's the downside of sharing one cache cluster across all services?"
+  },
+  {
+   "text": "add a log line in handleWebhook that prints the event type before the switch"
+  },
+  {
+   "text": "why does the e2e folder have its own compiler settings file?"
+  },
+  {
+   "text": "is the mobile app hitting the same auth endpoints as the web app?"
+  },
+  {
+   "text": "how do I read the flame graph you showed me?"
+  }
+ ]
+}

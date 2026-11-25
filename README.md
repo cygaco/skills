@@ -11,6 +11,7 @@ Each pack is a folder you copy into your own project. It works in any project, w
 | [`lastmile`](lastmile/README.md) | available | Reviews a working app for launch readiness, then plans and guides the path to the first paid customer. |
 | [`competitor`](competitor/README.md) | available | Researches competitors and writes a report, optionally compared against your own project. |
 | `twin` | coming soon | Sets up a read-only judgment helper that answers routine questions the way you would. |
+| [`plain`](plain/README.md) | available | Runs your skills from plain language, typed or dictated, without the slash or the exact name. |
 
 ## Install a pack
 
