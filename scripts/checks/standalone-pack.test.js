@@ -30,6 +30,16 @@
  *        anything installed into .claude/commands/), no colon subcommand and no command
  *        file in a subfolder, unless pack.json "extraCommands" lists the extra one as
  *        { "command", "file", "reason" } with a reason of 20 characters or more.
+ *   (iii) Development provenance: no shipped text refers to how a pack was developed.
+ *        Every file a pack lists in pack.json "files" (and each .js file again with its
+ *        adjacent string literals joined) against the PROVENANCE pattern families and the
+ *        role digests (provenance); a roadmap id is allowed only in the pack README. Every
+ *        commit message reachable from HEAD against the same families, where a roadmap id
+ *        is allowed (commit-msg).
+ *        What it cannot see: a provenance remark worded outside the families (a plain
+ *        sentence about an earlier version), a role named by a word not in the digest list,
+ *        and a word assembled by anything other than adjacent string literals. A read of
+ *        the shipped text before each release covers those.
  *
  * LOCAL LISTS (environment only; there is no default path)
  *   STANDALONE_PERSONAL_TOKENS   file, one token per line, case-insensitive substring match
@@ -96,6 +106,58 @@ const SHAPES = [
 
 // Slash-command closure (d2-command). The lookbehind keeps scheme://user:pass@ out.
 const D2_SOURCE = /(?<![\w/])\/[a-z][a-z0-9-]*:[a-z][a-z0-9:-]*/.source;
+
+// Development provenance (provenance, commit-msg). Shipped text must not refer to how a pack
+// was developed: review or fix rounds, review findings and their labels, internal record ids,
+// the roles of the people or agents who built it. The patterns are generic process words;
+// role names are matched by digest (PROVENANCE_DIGESTS, transform J1, never the words).
+// A label is a capital letter and one or two digits used as a reference to a finding: a
+// range of labels, a label before "residual" or "fix", a comment that starts with a label
+// and a colon, labels joined by slashes, a label inside a case title, a label range in an
+// identifier, or a round or unit number as one segment of an identifier. A label alone in
+// brackets is not matched, because product ids take that form too (an OWASP category, a
+// record id); C0/C1 before "control" are Unicode block names.
+const LBL = '[A-Z]\\d{1,2}';
+const NOT_BEFORE = '(?<![\\w$.+\\\\-])';
+const PROVENANCE = [
+  { label: 'round-label', re: /\b(?:fix|review|read|bounded|extra)[ -]?rounds?\b|\brounds?[ -]?\d+[a-z]?\b|\bround\d|\b(?:this|last|next|previous|earlier|prior|first|second|third|final|another) round\b/i },
+  {
+    label: 'finding-label',
+    re: new RegExp([
+      `${NOT_BEFORE}${LBL}\\s?[-\\u2013]\\s?${LBL}(?![\\w+])`,
+      `${NOT_BEFORE}${LBL}(?:\\s?[-\\u2013]\\s?[A-Z]?\\d{1,2})?\\s+(?:residual|findings?|fix(?:es)?)\\b`,
+      `(?:\\/\\/|\\/\\*|^\\s*\\*|^\\s*#+)[\\s-]*${LBL}(?:[-\\u2013][A-Z]?\\d{1,2})?:(?:\\s|$)`,
+      `${NOT_BEFORE}${LBL}(?:/${LBL})+(?![\\w+])(?!\\s+control)`,
+      `\\b[a-z]+ ${LBL} \\[[\\w-]+\\]`,
+      `[a-z]${LBL}to[A-Z]?\\d{1,2}[A-Z]|[Ff]ixRound|[Rr]eadRound`,
+      // A round (R) or unit (U) number as one segment of an identifier: LIST_R7, CASES_R9B,
+      // U7A_CODES, r6cParts.
+      `[A-Za-z0-9]_[RrUu]\\d{1,2}[A-Za-z]?\\b|\\b[RrUu]\\d{1,2}[A-Za-z]?_[A-Za-z]|\\b[ru]\\d{1,2}[a-z]?[A-Z][a-z]`,
+    ].join('|')),
+  },
+  // A quoted name with a lower-case label as one hyphen-separated part ('k3-sandbox',
+  // 'sandbox-k3', 'kit-k3-step'); a version part (v2) is not a label.
+  { label: 'label-name', re: /(?<![\w$])["'`][a-z]\d{1,2}[a-z]?-[a-z]|["'`][a-z0-9-]*-(?!v\d)[a-z]\d{1,2}[a-z]?(?=["'`-])/ },
+  { label: 'review-trail', re: /\bpre-fix\b|\b(?:before|after) (?:the|this) fix\b|\bon the old (?:code|kit)\b|\b(?:found|caught|flagged|raised|reported) (?:in|by) (?:a|an|the|that|the last|the security|the leak) (?:review|reviewer|read|audit)\b|\breview(?:[- ]process)? labels?\b/i },
+  { label: 'record-id', re: /\b(?:ED|RI|BC|PC|ADR)-\d{2,}/ },
+  // A roadmap id is public in a pack README and in commit messages, nowhere else in a pack.
+  { label: 'roadmap-id', re: /\bSK-\d{2,}/, allowIn: (rel) => rel === 'README.md', commits: false },
+];
+const PROVENANCE_DIGESTS = new Map([
+  ['6ebf3c8d63ef6b217bcee69e31f77f3634bbbef1346de27e229c17122974e27b', 'role-1'],
+  ['0380db97ec507816cb2435f11d56f1bfe151dea2ae25a75859e9b2f0417dda5b', 'role-2'],
+  ['15c55834c2da6a3f05e53d4515e9e367913822b7d4d60f9e5322b521e362c20e', 'role-3'],
+  ['5a17f79eee324d54682f035c412045363bc2331c677062f70c700ca2417441f6', 'role-4'],
+  ['b5f8da6bd3fb6c04eee3476312a18ea557b93d84d6355aa712ec8d984406b05d', 'role-5'],
+  ['9e00cdbc5a15ea449e2fdb3679f9351bca3be366928f2b45ebe29a728edae5f5', 'role-6'],
+  ['5ab7ae388dcc4fe8497c555b868696df24200d60cf939633fbf850b1d966df4e', 'role-7'],
+  ['4b83de39d717fc52e7392d1279e19527461371a237beaeca960cb111a7a0d8d1', 'role-8'],
+  ['1f5d31b398b2fc50b4e46515463b8b35b91f893268b5f854f852f28296ca431c', 'role-9'],
+  ['b5ee5cf252cdee9ef84caaef2c8c648db3ccff15fd55bdc6c6b2165ec817d665', 'role-10'],
+  ['b9c17579edbec4b701c9a64d67c6120e4ab58987330468a5b1300663d44b4980', 'role-11'],
+  ['2245c1c8daf7694bc2b2fe9f156c39f4bac6c788dc32e42bccb74554af2b5d86', 'role-12'],
+  ['bd1fcd0ada6eb361ed56d3d46c08f935b3d97d7a4b24fceccdc363c859048575', 'provenance-canary'],
+]);
 
 // ---------------------------------------------------------------- small helpers
 
@@ -299,6 +361,37 @@ function d2Hits(text, allowed) {
       if (!allowed.has(cmd)) hits.push({ line: i + 1, cmd });
     }
   });
+  return hits;
+}
+
+// Joined view of JavaScript source: adjacent string literals glued ('ab' + 'cd' reads as
+// abcd), so a word assembled from parts is still seen. Newlines inside a joined span are kept
+// after the literal, so every line keeps its number.
+const STR_LIT = `(['"])((?:(?!\\1)[^\\\\\\n]|\\\\.)*)\\1`;
+function joinLiterals(src) {
+  const re = new RegExp(`${STR_LIT}(\\s*\\+\\s*)${STR_LIT.replace(/\\1/g, '\\4')}`, 'g');
+  let out = String(src);
+  let m;
+  while ((m = re.exec(out)) !== null) {
+    const newlines = (m[3].match(/\n/g) || []).length;
+    out = out.slice(0, m.index) + m[1] + m[2] + m[5] + m[1] + '\n'.repeat(newlines) + out.slice(m.index + m[0].length);
+    re.lastIndex = m.index;
+  }
+  return out;
+}
+
+// Provenance hits in one text: the PROVENANCE patterns line by line, then the role digests.
+// rel (a pack-relative path) decides allowIn; forCommits drops the patterns a commit may carry.
+function provenanceHits(text, rel, forCommits) {
+  const hits = [];
+  String(text).split('\n').forEach((l, i) => {
+    for (const p of PROVENANCE) {
+      if (forCommits && p.commits === false) continue;
+      if (!forCommits && p.allowIn && p.allowIn(rel)) continue;
+      if (p.re.test(l)) hits.push({ line: i + 1, label: p.label });
+    }
+  });
+  for (const h of j1Hits(text, PROVENANCE_DIGESTS)) hits.push({ line: h.line, label: h.label });
   return hits;
 }
 
@@ -803,6 +896,48 @@ function checkPack(pack, report, ctx) {
     report.check('SKIP', 'install-from', 'install or files is malformed (see pack-json)');
   }
 
+  // (p) Development provenance over every listed file. A .js file is read twice: as written,
+  // and with adjacent string literals joined, so a word assembled from parts is still seen
+  // (the committed instance digests are applied to that joined view as well).
+  if (filesOk) {
+    const fails = [];
+    const seen = new Set();
+    let scannedFiles = 0;
+    const population = [];
+    for (const rel of listed) {
+      if (!safeRel(rel) || !diskSet.has(rel)) {
+        fails.push({ where: at('pack.json', filesLine), what: `listed file not read: ${rel}` });
+        continue;
+      }
+      const buf = fs.readFileSync(path.join(packDir, rel));
+      if (buf.subarray(0, 8000).includes(0)) {
+        fails.push({ where: at(rel, 1), what: 'listed file is binary, so its text cannot be read' });
+        continue;
+      }
+      scannedFiles++;
+      population.push(rel);
+      const raw = buf.toString('utf8');
+      const add = (line, what) => {
+        const key = `${rel}\0${line}\0${what}`;
+        if (!seen.has(key)) fails.push({ where: at(rel, line), what });
+        seen.add(key);
+      };
+      for (const h of provenanceHits(raw, rel, false)) add(h.line, h.label);
+      if (/\.(?:c|m)?js$/i.test(rel)) {
+        const joined = joinLiterals(raw);
+        if (joined !== raw) {
+          for (const h of provenanceHits(joined, rel, false)) add(h.line, h.label);
+          const rawHash = new Set(j1Hits(raw, ctx.digests).map((h) => `${h.line}\0${h.label}`));
+          for (const h of j1Hits(joined, ctx.digests)) if (!rawHash.has(`${h.line}\0${h.label}`)) add(h.line, `${h.label} (joined literals)`);
+        }
+      }
+    }
+    report.check(fails.length ? 'FAIL' : 'ok', 'provenance', `${fails.length} hits; ${scannedFiles} of ${listed.length} listed files read (${PROVENANCE.length} pattern families, ${PROVENANCE_DIGESTS.size} digests; .js files also read with string literals joined)`, fails);
+    console.log(`    provenance population (${population.length}): ${population.join(', ')}`);
+  } else {
+    report.check('SKIP', 'provenance', 'files is not a string array (see pack-json)');
+  }
+
   // (o) One command per pack. The pack's command files are every file under command/ plus
   // every file installed into .claude/commands/. Exactly one of them may be unlisted in
   // pack.json extraCommands; each listed one needs a reason. A command name with a colon in
@@ -913,7 +1048,12 @@ function checkPack(pack, report, ctx) {
       report.check('FAIL', 'selfcheck', `${why} after ${secs}s; last 20 lines follow`, [{ where, what: why }]);
       report.tail(`${r.stdout || ''}${r.stderr || ''}`, 20);
     } else {
-      report.check('ok', 'selfcheck', `exit 0 in ${secs}s`);
+      // A passing run still shows its summary line and every skipped case, so a log shows
+      // which cases ran on this platform.
+      const outLines = String(r.stdout || '').replace(/\s+$/, '').split(/\r?\n/);
+      const skipped = outLines.filter((l) => /^SKIP\b/.test(l));
+      report.check('ok', 'selfcheck', `exit 0 in ${secs}s; ${outLines[outLines.length - 1] || '(no output)'}; ${skipped.length} skipped case lines follow`);
+      if (skipped.length) report.tail(skipped.join('\n'), skipped.length);
     }
   } else {
     report.check('SKIP', 'selfcheck', 'no selfcheck command (see pack-json)');
@@ -1079,7 +1219,7 @@ function runEnforcer(rootArg) {
     console.error(`standalone-pack: cannot load forbidden-hashes.json (${e.message})`);
     return 2;
   }
-  const ctx = { temps: [], failures: 0, fatal: false };
+  const ctx = { temps: [], failures: 0, fatal: false, digests };
   const strict = process.env[ENV_STRICT] === '1';
   const personal = readList(ENV_PERSONAL);
   const instance = readList(ENV_INSTANCE);
@@ -1165,6 +1305,28 @@ function runEnforcer(rootArg) {
           for (const h of personalHits(c.text, personalTokens)) gf.push({ where, check: 'personal', what: `personal-token #${h.index}` });
         }
         report.check(gf.length ? 'FAIL' : 'ok', 'git-log', `${gf.length} hits in ${gl.commits.length} commits (shape, hash${personalTokens.length ? ', personal' : ''})`, gf);
+      }
+    }
+
+    // Check (h): every commit message reachable from HEAD (the history that lands) carries no
+    // development provenance. A roadmap id (SK-) is allowed in a message.
+    if (!top) {
+      report.check('SKIP', 'commit-msg', gitOk ? 'the root is not a git repo root' : 'git absent');
+    } else if (git(root, ['rev-parse', '--verify', '--quiet', 'HEAD']).status !== 0) {
+      report.check('ok', 'commit-msg', 'no commit yet (HEAD is unborn)');
+    } else {
+      const r = git(root, ['log', 'HEAD', '--format=%x00%H%n%B']);
+      if (r.status !== 0) {
+        report.check('FAIL', 'commit-msg', 'git log HEAD could not be read', [{ where: 'commit-msg', what: String(r.stderr || 'git log failed').split('\n')[0] }]);
+      } else {
+        const msgs = r.stdout.split('\0').filter((c) => c.trim());
+        const cf = [];
+        for (const c of msgs) {
+          const nl = c.indexOf('\n');
+          const sha = (nl < 0 ? c : c.slice(0, nl)).trim();
+          for (const h of provenanceHits(nl < 0 ? '' : c.slice(nl + 1), '', true)) cf.push({ where: `commit:${sha.slice(0, 7)}`, what: h.label });
+        }
+        report.check(cf.length ? 'FAIL' : 'ok', 'commit-msg', `${cf.length} provenance hits in ${msgs.length} commit messages reachable from HEAD`, cf);
       }
     }
 
@@ -1257,6 +1419,15 @@ const BUILDERS = {
     if (r.status !== 0) throw new Error('git commit failed');
     return null;
   },
+  'commit-msg'(tmp, o) {
+    if (!o.gitOk) return 'git absent';
+    const msg = ['fix: close the Q3-Q9 residual', '', 'Done in fix round 2; tracked as SK-099.', `Asked ${['zqxprov', 'vok'].join('')}.`, ''].join('\n');
+    const id = ['-c', 'user.name=fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false'];
+    if (git(tmp, ['add', '-A']).status !== 0) throw new Error('git add failed');
+    const r = git(tmp, id.concat(['commit', '-q', '-F', '-']), { input: msg });
+    if (r.status !== 0) throw new Error('git commit failed');
+    return null;
+  },
   'fixture-manifest'(tmp) {
     const dir = path.join(tmp, 'scripts', 'checks', 'fixtures');
     fs.mkdirSync(path.join(dir, 'x'), { recursive: true });
@@ -1312,7 +1483,7 @@ const BUILDERS = {
 };
 
 // Every check class the self-test must prove RED at least once.
-const REQUIRED_RED = ['shape', 'hash', 'personal', 'd2-command', 'd3-link', 'require', 'dirname', 'selfcheck', 'install', 'files-list', 'install-from', 'one-command', 'git-log', 'strict', 'cross-check', 'fixture-manifest', 'packs', 'pack-allowlist', 'pack-json', 'kit-cjs', 'kit-module'];
+const REQUIRED_RED = ['shape', 'hash', 'personal', 'd2-command', 'd3-link', 'require', 'dirname', 'selfcheck', 'install', 'files-list', 'install-from', 'one-command', 'provenance', 'git-log', 'commit-msg', 'strict', 'cross-check', 'fixture-manifest', 'packs', 'pack-allowlist', 'pack-json', 'kit-cjs', 'kit-module'];
 
 function parseFailureLines(output) {
   const out = [];

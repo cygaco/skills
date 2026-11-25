@@ -1,0 +1,56 @@
+{
+  "name": "twin",
+  "version": "0.1.0",
+  "description": "A read-only judgment helper for Claude Code. It answers the routine questions Claude would otherwise interrupt you with (DECIDE, DIRECTIVE or ESCALATE) from your own policy, stage and judgment notes, learns from your corrections, and always asks you about pushing, deploying, deleting data, spending, secrets, pricing, legal questions and users' data.",
+  "commands": [
+    "/twin"
+  ],
+  "install": [
+    {
+      "from": "agent/twin.md",
+      "to": ".claude/agents/twin.md"
+    },
+    {
+      "from": "command/twin.md",
+      "to": ".claude/commands/twin.md"
+    },
+    {
+      "from": "kit",
+      "to": ".claude/twin"
+    }
+  ],
+  "selfcheck": "node .claude/twin/scripts/check.js",
+  "requires": {
+    "node": ">=20"
+  },
+  "files": [
+    "README.md",
+    "agent/twin.md",
+    "command/twin.md",
+    "kit/consult.md",
+    "kit/package.json",
+    "kit/scripts/check.js",
+    "kit/scripts/ledger.js",
+    "kit/scripts/lib/cli.js",
+    "kit/scripts/lib/formats.js",
+    "kit/scripts/lib/fsx.js",
+    "kit/scripts/lib/jsonl.js",
+    "kit/scripts/lib/md.js",
+    "kit/scripts/lib/redact.js",
+    "kit/scripts/lib/redlines.js",
+    "kit/scripts/lib/transcripts.js",
+    "kit/scripts/lib/verdict.js",
+    "kit/scripts/mine.js",
+    "kit/scripts/proposals.js",
+    "kit/scripts/setup.js",
+    "kit/scripts/verdict.js",
+    "kit/templates/consult-rule.md",
+    "kit/templates/formats.md",
+    "kit/templates/gitignore.txt",
+    "kit/templates/judgment.md",
+    "kit/templates/policy.md",
+    "kit/templates/proposals.md",
+    "kit/templates/stage.md",
+    "pack.json"
+  ]
+}

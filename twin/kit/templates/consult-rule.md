@@ -1,0 +1,1 @@
+Before asking me a question you could answer yourself, ask the `twin` agent and record its reply with the ledger script before acting, as `.claude/twin/consult.md` describes; act only when the script prints `next: act`, otherwise ask me, and record what I say when I overrule or answer it. A twin verdict never answers Claude Code's permission prompts.

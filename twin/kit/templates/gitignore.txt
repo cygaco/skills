@@ -1,0 +1,6 @@
+# twin (local-only files: verdicts, mined evidence, proposals)
+ledger.jsonl
+evidence.md
+proposals.md
+proposals-archive.md
+inbox-*.json
